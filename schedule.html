@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALTTAB SCHEDULE</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    background: #fff;
+    color: #111;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  .app-header {
+    padding: 20px 36px 16px;
+    border-bottom: 2px solid #333;
+    flex-shrink: 0;
+  }
+  .header-title {
+    font-size: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+  }
+
+  /* MONTH TABS */
+  .month-tabs {
+    display: flex;
+    flex-direction: row;
+    border-bottom: 1px solid #e8e8e8;
+    flex-shrink: 0;
+    padding: 0 36px;
+    gap: 2px;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    color: #888;
+    font-family: Helvetica, Arial, sans-serif;
+    margin-bottom: -1px;
+    transition: color 0.15s;
+  }
+  .tab-btn:hover { color: #2a7a8c; }
+  .tab-btn.active {
+    color: #2a7a8c;
+    border-bottom: 2px solid #2a7a8c;
+  }
+
+  /* BODY */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 168px;
+    border-right: 1px solid #e8e8e8;
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .sidebar-month-number {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1;
+    color: #111;
+  }
+  .sidebar-month-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #555;
+  }
+  .sidebar-year {
+    font-size: 12px;
+    color: #999;
+    margin-top: -6px;
+  }
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid #e8e8e8;
+    margin: 4px 0;
+  }
+  .sidebar-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #555;
+  }
+  .stat-val {
+    font-weight: 700;
+    color: #2a7a8c;
+  }
+  .memo-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+  .memo-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 2px;
+  }
+  .memo-area {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    color: #333;
+    line-height: 1.5;
+    min-height: 48px;
+    border: 1px solid #e8e8e8;
+    border-radius: 2px;
+    padding: 6px 8px;
+    outline: none;
+    resize: none;
+    width: 100%;
+  }
+  .memo-area:focus { border-color: #2a7a8c; }
+
+  /* CALENDAR */
+  .calendar-wrap {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .calendar-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #e8e8e8;
+    border-bottom: 1px solid #e8e8e8;
+    flex-shrink: 0;
+  }
+  .cal-day-label {
+    background: #fff;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #999;
+    padding: 8px 0;
+    text-transform: uppercase;
+  }
+  .cal-day-label:first-child { color: #e05555; }
+  .cal-day-label:last-child { color: #4a7ad4; }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #e8e8e8;
+    flex: 1;
+  }
+  .cal-cell {
+    background: #fff;
+    min-height: 90px;
+    cursor: pointer;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    position: relative;
+    transition: background 0.1s;
+  }
+  .cal-cell:hover { background: #f7fbfc; }
+  .cal-cell.today { background: #e8f4f8; }
+  .cal-cell.today:hover { background: #daeef4; }
+  .cal-cell.selected { outline: 2px solid #2a7a8c; outline-offset: -2px; }
+  .cal-cell.other-month { opacity: 0.35; }
+  .cal-date-num {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    line-height: 1;
+  }
+  .cal-cell.today .cal-date-num {
+    color: #2a7a8c;
+  }
+  .cal-cell:nth-child(7n+1) .cal-date-num { color: #e05555; }
+  .cal-cell.today:nth-child(7n+1) .cal-date-num { color: #2a7a8c; }
+  .todo-chip {
+    font-size: 11px;
+    line-height: 1.3;
+    padding: 2px 5px;
+    border-radius: 2px;
+    background: #f5f5f5;
+    color: #444;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .todo-chip.done { text-decoration: line-through; color: #bbb; }
+  .todo-chip.dimmed { opacity: 0.25; }
+  .todo-chip.highlighted { background: #d4eef4; color: #2a7a8c; }
+  .todo-more {
+    font-size: 10px;
+    color: #aaa;
+    padding-left: 2px;
+  }
+
+  /* PEOPLE PANEL */
+  .people-panel {
+    width: 200px;
+    border-left: 1px solid #e8e8e8;
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .panel-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #aaa;
+  }
+  .filter-active-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #e8f4f8;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+    color: #2a7a8c;
+    font-weight: 600;
+  }
+  .filter-clear-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #2a7a8c;
+    padding: 0;
+    line-height: 1;
+    margin-left: auto;
+  }
+  .member-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 0;
+  }
+  .person-name-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #333;
+    padding: 2px 4px;
+    flex: 1;
+    text-align: left;
+    border-radius: 2px;
+    transition: color 0.15s;
+  }
+  .person-name-btn:hover { color: #2a7a8c; }
+  .person-name-btn.active { color: #2a7a8c; font-weight: 600; }
+  .person-edit-input {
+    flex: 1;
+    font-size: 13px;
+    font-family: Helvetica, Arial, sans-serif;
+    border: 1px solid #2a7a8c;
+    border-radius: 2px;
+    padding: 2px 6px;
+    outline: none;
+    color: #333;
+  }
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ccc;
+    font-size: 13px;
+    padding: 2px 4px;
+    border-radius: 2px;
+    transition: color 0.15s;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .icon-btn:hover { color: #2a7a8c; }
+  .icon-btn.del:hover { color: #e05555; }
+  .add-person-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .add-person-input {
+    flex: 1;
+    font-size: 12px;
+    font-family: Helvetica, Arial, sans-serif;
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    padding: 5px 8px;
+    outline: none;
+  }
+  .add-person-input:focus { border-color: #2a7a8c; }
+  .add-person-btn {
+    background: #2a7a8c;
+    color: #fff;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 28px;
+    line-height: 1;
+    font-family: Helvetica, Arial, sans-serif;
+  }
+  .add-person-btn:hover { background: #1f5f6e; }
+
+  /* POPUP */
+  .popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .popup-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .popup {
+    background: #fff;
+    width: 440px;
+    max-width: calc(100vw - 48px);
+    max-height: 80vh;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(8px);
+    transition: transform 0.15s;
+  }
+  .popup-overlay.open .popup {
+    transform: translateY(0);
+  }
+  .popup-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #e8e8e8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .popup-date-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .popup-close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    color: #aaa;
+    line-height: 1;
+    padding: 0 4px;
+  }
+  .popup-close-btn:hover { color: #333; }
+  .popup-body {
+    padding: 12px 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    transition: background 0.1s;
+  }
+  .todo-item:hover { background: #f9f9f9; border-color: #f0f0f0; }
+  .todo-item.dimmed { opacity: 0.3; }
+  .todo-checkbox {
+    width: 15px;
+    height: 15px;
+    accent-color: #2a7a8c;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .todo-text {
+    flex: 1;
+    font-size: 13px;
+    color: #222;
+    cursor: text;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    padding: 2px 4px;
+    outline: none;
+    font-family: Helvetica, Arial, sans-serif;
+    background: transparent;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .todo-text:focus { border-color: #2a7a8c; background: #fff; }
+  .todo-text.done { text-decoration: line-through; color: #bbb; }
+  .person-tag {
+    font-size: 11px;
+    background: #e8f4f8;
+    color: #2a7a8c;
+    border-radius: 2px;
+    padding: 2px 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    border: none;
+    font-family: Helvetica, Arial, sans-serif;
+    flex-shrink: 0;
+    transition: background 0.12s;
+  }
+  .person-tag:hover { background: #c4e2ec; }
+  .todo-del-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ddd;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+  .todo-del-btn:hover { color: #e05555; }
+  .popup-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #e8e8e8;
+    flex-shrink: 0;
+  }
+  .add-todo-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .add-todo-input {
+    flex: 1;
+    font-size: 13px;
+    font-family: Helvetica, Arial, sans-serif;
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    padding: 7px 10px;
+    outline: none;
+  }
+  .add-todo-input:focus { border-color: #2a7a8c; }
+  .add-todo-btn {
+    background: #2a7a8c;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    font-family: Helvetica, Arial, sans-serif;
+    white-space: nowrap;
+  }
+  .add-todo-btn:hover { background: #1f5f6e; }
+  .chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .person-chip {
+    font-size: 11px;
+    font-family: Helvetica, Arial, sans-serif;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #555;
+    border-radius: 2px;
+    padding: 3px 9px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .person-chip:hover { border-color: #2a7a8c; color: #2a7a8c; }
+  .person-chip.active {
+    background: #2a7a8c;
+    color: #fff;
+    border-color: #2a7a8c;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #bbb; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-title">ALTTAB SCHEDULE</div>
+</header>
+
+<div class="month-tabs" id="monthTabs"></div>
+
+<div class="app-body">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="calendar-wrap" id="calendarWrap"></main>
+  <aside class="people-panel" id="peoplePanel"></aside>
+</div>
+
+<!-- POPUP -->
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup" id="popup">
+    <div class="popup-header">
+      <span class="popup-date-title" id="popupDateTitle"></span>
+      <button class="popup-close-btn" id="popupCloseBtn">&times;</button>
+    </div>
+    <div class="popup-body" id="popupBody"></div>
+    <div class="popup-footer" id="popupFooter"></div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────────────────────
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+let state = {
+  year: new Date().getFullYear(),
+  month: new Date().getMonth(),
+  todos: {},
+  people: [],
+  memos: {},
+  popup: { open: false, dateKey: null },
+  newTodoPerson: null,
+  filterPerson: null,
+  editingTodoId: null,
+  editingPersonIdx: null,
+};
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+function save() {
+  localStorage.setItem('alttab_todos',   JSON.stringify(state.todos));
+  localStorage.setItem('alttab_people',  JSON.stringify(state.people));
+  localStorage.setItem('alttab_memos',   JSON.stringify(state.memos));
+}
+function load() {
+  try { state.todos  = JSON.parse(localStorage.getItem('alttab_todos'))  || {}; } catch(e) { state.todos = {}; }
+  try { state.people = JSON.parse(localStorage.getItem('alttab_people')) || []; } catch(e) { state.people = []; }
+  try { state.memos  = JSON.parse(localStorage.getItem('alttab_memos'))  || {}; } catch(e) { state.memos = {}; }
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function dateKey(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function memoKey(y, m) { return `${y}-${m}`; }
+function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+function getLeadNum(text) {
+  const m = text.match(/^(\d+)[\.\s]/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function sortTodos(list) {
+  return [...list].sort((a, b) => {
+    const na = getLeadNum(a.text), nb = getLeadNum(b.text);
+    if (na !== null && nb !== null) return na - nb;
+    if (na !== null) return -1;
+    if (nb !== null) return 1;
+    return 0;
+  });
+}
+
+function todayKey() {
+  const t = new Date();
+  return dateKey(t.getFullYear(), t.getMonth(), t.getDate());
+}
+
+function formatDateTitle(dateKey) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return `${DAYS[dt.getDay()]}, ${MONTHS[m-1]} ${d}, ${y}`;
+}
+
+// ─── RENDER: MONTH TABS ───────────────────────────────────────────────────────
+function renderTabs() {
+  const el = document.getElementById('monthTabs');
+  el.innerHTML = MONTHS.map((mn, i) =>
+    `<button class="tab-btn${state.month === i ? ' active' : ''}" data-m="${i}">${mn}</button>`
+  ).join('');
+  el.querySelectorAll('.tab-btn').forEach(btn =>
+    btn.addEventListener('click', () => {
+      saveMemos();
+      state.month = parseInt(btn.dataset.m);
+      state.popup.open = false;
+      renderAll();
+    })
+  );
+}
+
+// ─── RENDER: SIDEBAR ─────────────────────────────────────────────────────────
+function renderSidebar() {
+  const el = document.getElementById('sidebar');
+  const mk = memoKey(state.year, state.month);
+  const memo = state.memos[mk] || { plan:'', do:'', see:'' };
+
+  // compute stats for this month
+  let total = 0, done = 0;
+  const y = state.year, m = state.month;
+  const dim = new Date(y, m+1, 0).getDate();
+  for (let d = 1; d <= dim; d++) {
+    const dk = dateKey(y, m, d);
+    const list = state.todos[dk] || [];
+    total += list.length;
+    done  += list.filter(t => t.done).length;
+  }
+
+  el.innerHTML = `
+    <div class="sidebar-month-number">${String(state.month+1).padStart(2,'0')}</div>
+    <div class="sidebar-month-name">${MONTHS[state.month]}</div>
+    <div class="sidebar-year">${state.year}</div>
+    <hr class="sidebar-divider">
+    <div class="sidebar-stats">
+      <div class="stat-row"><span>TOTAL</span><span class="stat-val">${total}</span></div>
+      <div class="stat-row"><span>DONE</span><span class="stat-val">${done}</span></div>
+    </div>
+    <hr class="sidebar-divider">
+    <div class="memo-section">
+      <div>
+        <div class="memo-label">PLAN</div>
+        <textarea class="memo-area" id="memoPlan" rows="3">${escHtml(memo.plan)}</textarea>
+      </div>
+      <div>
+        <div class="memo-label">DO</div>
+        <textarea class="memo-area" id="memoDo" rows="3">${escHtml(memo.do)}</textarea>
+      </div>
+      <div>
+        <div class="memo-label">SEE</div>
+        <textarea class="memo-area" id="memoSee" rows="3">${escHtml(memo.see)}</textarea>
+      </div>
+    </div>
+  `;
+  // memo auto-save on input
+  ['memoPlan','memoDo','memoSee'].forEach(id => {
+    document.getElementById(id).addEventListener('input', saveMemos);
+  });
+}
+
+function saveMemos() {
+  const mk = memoKey(state.year, state.month);
+  const p = document.getElementById('memoPlan');
+  const d = document.getElementById('memoDo');
+  const s = document.getElementById('memoSee');
+  if (!p) return;
+  if (!state.memos[mk]) state.memos[mk] = { plan:'', do:'', see:'' };
+  state.memos[mk].plan = p.value;
+  state.memos[mk].do   = d.value;
+  state.memos[mk].see  = s.value;
+  save();
+}
+
+// ─── RENDER: CALENDAR ────────────────────────────────────────────────────────
+function renderCalendar() {
+  const wrap = document.getElementById('calendarWrap');
+  const y = state.year, m = state.month;
+  const firstDay = new Date(y, m, 1).getDay();
+  const dim      = new Date(y, m+1, 0).getDate();
+  const prevDim  = new Date(y, m, 0).getDate();
+  const tk       = todayKey();
+
+  // header
+  let html = `<div class="calendar-header-row">${DAYS.map(d => `<div class="cal-day-label">${d}</div>`).join('')}</div>`;
+  html += `<div class="calendar-grid" id="calGrid">`;
+
+  const cells = [];
+  // prev month padding
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cells.push({ d: prevDim - i, m: m-1, y: m === 0 ? y-1 : y, thisMonth: false });
+  }
+  for (let d = 1; d <= dim; d++) {
+    cells.push({ d, m, y, thisMonth: true });
+  }
+  // fill remainder
+  const rem = 7 - (cells.length % 7);
+  if (rem < 7) {
+    for (let i = 1; i <= rem; i++) {
+      cells.push({ d: i, m: m+1, y: m === 11 ? y+1 : y, thisMonth: false });
+    }
+  }
+
+  cells.forEach(cell => {
+    const dk  = dateKey(cell.y, cell.m, cell.d);
+    const raw = state.todos[dk] || [];
+    const sorted = sortTodos(raw);
+    const isToday    = dk === tk;
+    const isSelected = state.popup.open && state.popup.dateKey === dk;
+    const isOther    = !cell.thisMonth;
+
+    let cls = 'cal-cell';
+    if (isToday)    cls += ' today';
+    if (isSelected) cls += ' selected';
+    if (isOther)    cls += ' other-month';
+
+    let chipsHtml = '';
+    const maxShow = 3;
+    sorted.slice(0, maxShow).forEach(t => {
+      const fp = state.filterPerson;
+      let chipCls = 'todo-chip';
+      if (t.done) chipCls += ' done';
+      if (fp && t.person !== fp) chipCls += ' dimmed';
+      if (fp && t.person === fp) chipCls += ' highlighted';
+      chipsHtml += `<div class="${chipCls}">${escHtml(t.text)}</div>`;
+    });
+    if (sorted.length > maxShow) {
+      chipsHtml += `<div class="todo-more">+${sorted.length - maxShow} more</div>`;
+    }
+
+    html += `<div class="${cls}" data-dk="${dk}">
+      <div class="cal-date-num">${cell.d}</div>
+      ${chipsHtml}
+    </div>`;
+  });
+
+  html += `</div>`;
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('.cal-cell').forEach(cell => {
+    cell.addEventListener('click', () => openPopup(cell.dataset.dk));
+  });
+}
+
+// ─── RENDER: PEOPLE PANEL ────────────────────────────────────────────────────
+function renderPeople() {
+  const el = document.getElementById('peoplePanel');
+  let html = `<div class="panel-title">MEMBERS</div>`;
+
+  if (state.filterPerson) {
+    html += `<div class="filter-active-bar">
+      <span>${escHtml(state.filterPerson)}</span>
+      <button class="filter-clear-btn" id="filterClearBtn">&times;</button>
+    </div>`;
+  }
+
+  html += `<div id="memberList">`;
+  state.people.forEach((p, i) => {
+    const isActive  = state.filterPerson === p;
+    const isEditing = state.editingPersonIdx === i;
+    html += `<div class="member-item" data-idx="${i}">`;
+    if (isEditing) {
+      html += `<input class="person-edit-input" id="editPersonInput" type="text" value="${escHtml(p)}" data-idx="${i}">`;
+    } else {
+      html += `<button class="person-name-btn${isActive ? ' active' : ''}" data-idx="${i}">${escHtml(p)}</button>
+               <button class="icon-btn edit-person-btn" data-idx="${i}" title="편집">&#9998;</button>
+               <button class="icon-btn del icon-btn del-person-btn" data-idx="${i}" title="삭제">&times;</button>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  html += `<div class="add-person-row">
+    <input class="add-person-input" id="addPersonInput" type="text" placeholder="이름 추가...">
+    <button class="add-person-btn" id="addPersonBtn">+</button>
+  </div>`;
+
+  el.innerHTML = html;
+
+  // filter clear
+  const fcb = document.getElementById('filterClearBtn');
+  if (fcb) fcb.addEventListener('click', () => { state.filterPerson = null; renderAll(); });
+
+  // person name btn (filter)
+  el.querySelectorAll('.person-name-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = state.people[parseInt(btn.dataset.idx)];
+      state.filterPerson = state.filterPerson === name ? null : name;
+      renderAll();
+    });
+  });
+
+  // edit btn
+  el.querySelectorAll('.edit-person-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.editingPersonIdx = parseInt(btn.dataset.idx);
+      renderPeople();
+      const inp = document.getElementById('editPersonInput');
+      if (inp) { inp.focus(); inp.select(); }
+    });
+  });
+
+  // edit input: Enter/ESC
+  const editInp = document.getElementById('editPersonInput');
+  if (editInp) {
+    editInp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { commitPersonEdit(editInp); }
+      if (e.key === 'Escape') { state.editingPersonIdx = null; renderPeople(); }
+    });
+    editInp.addEventListener('blur', () => {
+      // slight delay to avoid conflict with btn clicks
+      setTimeout(() => {
+        if (state.editingPersonIdx !== null) commitPersonEdit(editInp);
+      }, 150);
+    });
+  }
+
+  // delete btn
+  el.querySelectorAll('.del-person-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx  = parseInt(btn.dataset.idx);
+      const name = state.people[idx];
+      if (state.filterPerson === name) state.filterPerson = null;
+      state.people.splice(idx, 1);
+      save();
+      renderAll();
+    });
+  });
+
+  // add person
+  document.getElementById('addPersonBtn').addEventListener('click', addPerson);
+  document.getElementById('addPersonInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addPerson();
+  });
+}
+
+function commitPersonEdit(inp) {
+  const idx = parseInt(inp.dataset.idx);
+  const newName = inp.value.trim();
+  if (newName && idx >= 0 && idx < state.people.length) {
+    const oldName = state.people[idx];
+    // update todos
+    Object.values(state.todos).forEach(list => {
+      list.forEach(t => { if (t.person === oldName) t.person = newName; });
+    });
+    if (state.filterPerson === oldName) state.filterPerson = newName;
+    state.people[idx] = newName;
+    save();
+  }
+  state.editingPersonIdx = null;
+  renderAll();
+}
+
+function addPerson() {
+  const inp  = document.getElementById('addPersonInput');
+  const name = inp.value.trim();
+  if (!name || state.people.includes(name)) { inp.focus(); return; }
+  state.people.push(name);
+  inp.value = '';
+  save();
+  renderPeople();
+  if (state.popup.open) renderPopup();
+}
+
+// ─── POPUP ────────────────────────────────────────────────────────────────────
+function openPopup(dk) {
+  state.popup = { open: true, dateKey: dk };
+  state.editingTodoId = null;
+  renderPopup();
+  renderCalendar();
+  const overlay = document.getElementById('popupOverlay');
+  overlay.classList.add('open');
+}
+
+function closePopup() {
+  state.popup.open = false;
+  state.editingTodoId = null;
+  document.getElementById('popupOverlay').classList.remove('open');
+  renderCalendar();
+  renderSidebar();
+}
+
+function renderPopup() {
+  if (!state.popup.open) return;
+  const dk   = state.popup.dateKey;
+  const raw  = state.todos[dk] || [];
+  const list = sortTodos(raw);
+
+  document.getElementById('popupDateTitle').textContent = formatDateTitle(dk);
+
+  // BODY: todo items
+  const body = document.getElementById('popupBody');
+  if (list.length === 0) {
+    body.innerHTML = `<div style="font-size:13px;color:#bbb;padding:8px 0;">할일이 없습니다. 아래에서 추가하세요.</div>`;
+  } else {
+    body.innerHTML = list.map(t => {
+      const fp = state.filterPerson;
+      let itemCls = 'todo-item';
+      if (fp && t.person !== fp) itemCls += ' dimmed';
+      const textCls = 'todo-text' + (t.done ? ' done' : '');
+      const personTag = t.person
+        ? `<button class="person-tag" data-person="${escHtml(t.person)}">${escHtml(t.person)}</button>`
+        : '';
+      return `<div class="${itemCls}" data-id="${t.id}">
+        <input type="checkbox" class="todo-checkbox" data-id="${t.id}" ${t.done ? 'checked' : ''}>
+        <div class="${textCls}" contenteditable="true" data-id="${t.id}" spellcheck="false">${escHtml(t.text)}</div>
+        ${personTag}
+        <button class="todo-del-btn" data-id="${t.id}">&times;</button>
+      </div>`;
+    }).join('');
+  }
+
+  // bind events in body
+  body.querySelectorAll('.todo-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => toggleTodo(dk, cb.dataset.id));
+  });
+  body.querySelectorAll('.todo-text').forEach(div => {
+    div.addEventListener('blur', () => updateTodoText(dk, div.dataset.id, div.innerText.trim()));
+    div.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); div.blur(); }
+    });
+  });
+  body.querySelectorAll('.person-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const p = tag.dataset.person;
+      state.filterPerson = state.filterPerson === p ? null : p;
+      renderAll();
+      renderPopup();
+    });
+  });
+  body.querySelectorAll('.todo-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteTodo(dk, btn.dataset.id));
+  });
+
+  // FOOTER: add todo
+  const footer = document.getElementById('popupFooter');
+  const chipsHtml = [
+    `<button class="person-chip${state.newTodoPerson === null ? ' active' : ''}" data-person="">없음</button>`,
+    ...state.people.map(p =>
+      `<button class="person-chip${state.newTodoPerson === p ? ' active' : ''}" data-person="${escHtml(p)}">${escHtml(p)}</button>`
+    )
+  ].join('');
+
+  footer.innerHTML = `
+    <div class="add-todo-row">
+      <input class="add-todo-input" id="addTodoInput" type="text" placeholder="할일 입력...">
+      <button class="add-todo-btn" id="addTodoBtn">추가</button>
+    </div>
+    <div class="chips-row">${chipsHtml}</div>
+  `;
+
+  footer.querySelectorAll('.person-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      state.newTodoPerson = chip.dataset.person === '' ? null : chip.dataset.person;
+      renderPopup();
+      // restore focus to input
+      const inp = document.getElementById('addTodoInput');
+      if (inp) inp.focus();
+    });
+  });
+
+  document.getElementById('addTodoBtn').addEventListener('click', () => addTodo(dk));
+  document.getElementById('addTodoInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addTodo(dk);
+  });
+  // autofocus input
+  setTimeout(() => {
+    const inp = document.getElementById('addTodoInput');
+    if (inp) inp.focus();
+  }, 50);
+}
+
+// ─── TODO ACTIONS ─────────────────────────────────────────────────────────────
+function addTodo(dk) {
+  const inp  = document.getElementById('addTodoInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  if (!state.todos[dk]) state.todos[dk] = [];
+  state.todos[dk].push({ id: uid(), text, person: state.newTodoPerson, done: false });
+  inp.value = '';
+  save();
+  renderPopup();
+  renderCalendar();
+  renderSidebar();
+}
+
+function toggleTodo(dk, id) {
+  const list = state.todos[dk] || [];
+  const t = list.find(x => x.id === id);
+  if (t) { t.done = !t.done; save(); renderPopup(); renderCalendar(); renderSidebar(); }
+}
+
+function updateTodoText(dk, id, newText) {
+  const list = state.todos[dk] || [];
+  const t = list.find(x => x.id === id);
+  if (t && newText && t.text !== newText) {
+    t.text = newText;
+    save();
+    renderCalendar();
+    // re-sort if needed (don't full re-render popup to avoid focus loss issues)
+    const sorted = sortTodos(list);
+    const cur = list.map(x=>x.id).join(',');
+    const nxt = sorted.map(x=>x.id).join(',');
+    if (cur !== nxt) renderPopup();
+  }
+}
+
+function deleteTodo(dk, id) {
+  if (!state.todos[dk]) return;
+  state.todos[dk] = state.todos[dk].filter(t => t.id !== id);
+  if (state.todos[dk].length === 0) delete state.todos[dk];
+  save();
+  renderPopup();
+  renderCalendar();
+  renderSidebar();
+}
+
+// ─── ESCAPE HTML ─────────────────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── RENDER ALL ──────────────────────────────────────────────────────────────
+function renderAll() {
+  renderTabs();
+  renderSidebar();
+  renderCalendar();
+  renderPeople();
+}
+
+// ─── EVENTS ──────────────────────────────────────────────────────────────────
+document.getElementById('popupOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('popupOverlay')) closePopup();
+});
+document.getElementById('popupCloseBtn').addEventListener('click', closePopup);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (state.editingPersonIdx !== null) {
+      state.editingPersonIdx = null;
+      renderPeople();
+    } else if (state.popup.open) {
+      closePopup();
+    }
+  }
+});
+
+// stop popup from closing when clicking inside it
+document.getElementById('popup').addEventListener('click', e => e.stopPropagation());
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+load();
+renderAll();
+</script>
+</body>
+</html>
