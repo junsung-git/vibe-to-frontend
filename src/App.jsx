@@ -28,9 +28,6 @@ function sortTodos(todos) {
 function dateKey(y, m, d) {
   return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`
 }
-function getPw(key, def) {
-  return localStorage.getItem(key) || def
-}
 
 export default function App() {
   const today = useMemo(() => new Date(), [])
@@ -45,6 +42,7 @@ export default function App() {
   const [pwChangeGuest, setPwChangeGuest] = useState('')
   const [pwChangeAdmin, setPwChangeAdmin] = useState('')
   const [pwChangeMsg, setPwChangeMsg] = useState('')
+  const [passwords, setPasswords] = useState({ guest: '0000', admin: '0000' })
 
   // ── CALENDAR ──
   const [curYear, setCurYear] = useState(today.getFullYear())
@@ -80,14 +78,17 @@ export default function App() {
   // ── API ──
   const loadSettings = useCallback(async () => {
     try {
-      const [mRes, memRes] = await Promise.all([
+      const [mRes, memRes, pwRes] = await Promise.all([
         fetch(`${SETTINGS_API}/memo`),
         fetch(`${SETTINGS_API}/members`),
+        fetch(`${SETTINGS_API}/passwords`),
       ])
       const mData = await mRes.json()
       const memData = await memRes.json()
+      const pwData = await pwRes.json()
       if (mData.value !== null) setMemo(mData.value)
       if (memData.value !== null) setMembers(memData.value)
+      if (pwData.value !== null) setPasswords(pwData.value)
     } catch (e) { console.error('설정 로드 실패:', e) }
   }, [])
 
@@ -120,6 +121,14 @@ export default function App() {
     } catch (e) {
       console.error('로드 실패:', e)
     }
+  }, [])
+
+  // 앱 시작 시 비번 미리 로드
+  useEffect(() => {
+    fetch(`${SETTINGS_API}/passwords`)
+      .then(r => r.json())
+      .then(d => { if (d.value !== null) setPasswords(d.value) })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -175,9 +184,7 @@ export default function App() {
 
   // ── AUTH HANDLERS ──
   function tryLogin() {
-    const correct = loginMode === 'guest'
-      ? getPw('alttab_pw_guest', '0000')
-      : getPw('alttab_pw_admin', '0000')
+    const correct = loginMode === 'guest' ? passwords.guest : passwords.admin
     if (loginPw === correct) {
       setIsLoggedIn(true)
       setIsAdmin(loginMode === 'admin')
@@ -194,8 +201,11 @@ export default function App() {
       setPwChangeMsg('변경할 비밀번호를 입력하세요')
       return
     }
-    if (pwChangeGuest) localStorage.setItem('alttab_pw_guest', pwChangeGuest)
-    if (pwChangeAdmin) localStorage.setItem('alttab_pw_admin', pwChangeAdmin)
+    const updated = { ...passwords }
+    if (pwChangeGuest) updated.guest = pwChangeGuest
+    if (pwChangeAdmin) updated.admin = pwChangeAdmin
+    setPasswords(updated)
+    saveSetting('passwords', updated)
     setPwChangeMsg('저장되었습니다')
     setTimeout(() => { setPwChangeOpen(false); setPwChangeMsg('') }, 800)
   }
