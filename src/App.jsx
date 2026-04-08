@@ -64,13 +64,14 @@ export default function App() {
   const [editExtraDays, setEditExtraDays] = useState(0)
 
   // ── VACATION ──
-  // vacData: { [name]: { remaining: number, days: { [dk]: { full: number, half: boolean } } } }
+  // vacData: { [name]: { remaining: number, days: { [dk]: { value: 0 | 0.5 | 1 } } } }
+  // value 0.5 = 이름/  (반차),  value 1 = 이름  (연차)
   const [vacMode, setVacMode] = useState(false)
   const [vacData, setVacData] = useState({})
   const [vacModalDate, setVacModalDate] = useState(null)
 
   function getVacDay(name, dk) {
-    return vacData[name]?.days?.[dk] || { full: 0, half: false }
+    return vacData[name]?.days?.[dk] || { value: 0 }
   }
   function getVacRemaining(name) {
     return vacData[name]?.remaining ?? 0
@@ -80,36 +81,42 @@ export default function App() {
     d.setDate(d.getDate() + n)
     return dateKey(d.getFullYear(), d.getMonth() + 1, d.getDate())
   }
+  // +1: value가 1 미만인 첫 번째 칸을 찾아 1로 설정
   function vacAddFull(name, startDk) {
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
-      // 클릭한 날짜부터 연속된 다음 빈 날짜를 찾아서 추가
       let targetDk = startDk
-      while ((entry.days[targetDk]?.full || 0) >= 1) {
+      while ((entry.days[targetDk]?.value || 0) >= 1) {
         targetDk = addDaysToKey(targetDk, 1)
       }
+      const cur = entry.days[targetDk]?.value || 0
+      const cost = 1 - cur  // 이미 0.5면 0.5만 차감
       return {
         ...prev,
         [name]: {
-          remaining: entry.remaining - 1,
-          days: { ...entry.days, [targetDk]: { ...(entry.days[targetDk] || { half: false }), full: 1 } }
+          ...entry,
+          remaining: entry.remaining - cost,
+          days: { ...entry.days, [targetDk]: { value: 1 } }
         }
       }
     })
   }
+  // +0.5: value가 1 미만인 첫 번째 칸에 0.5 추가 (0→0.5→1→다음칸)
   function vacAddHalf(name, startDk) {
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
-      // 클릭한 날짜부터 full 또는 half 가 이미 있는 날짜는 건너뜀
       let targetDk = startDk
-      while ((entry.days[targetDk]?.full || 0) >= 1 || entry.days[targetDk]?.half) {
+      while ((entry.days[targetDk]?.value || 0) >= 1) {
         targetDk = addDaysToKey(targetDk, 1)
       }
+      const cur = entry.days[targetDk]?.value || 0
+      const newVal = Math.min(cur + 0.5, 1)
       return {
         ...prev,
         [name]: {
+          ...entry,
           remaining: entry.remaining - 0.5,
-          days: { ...entry.days, [targetDk]: { ...(entry.days[targetDk] || { full: 0 }), half: true } }
+          days: { ...entry.days, [targetDk]: { value: newVal } }
         }
       }
     })
@@ -117,11 +124,10 @@ export default function App() {
   function vacClearDay(name, dk) {
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
-      const day = entry.days[dk] || { full: 0, half: false }
-      const refund = day.full + (day.half ? 0.5 : 0)
+      const refund = entry.days[dk]?.value || 0
       const newDays = { ...entry.days }
       delete newDays[dk]
-      return { ...prev, [name]: { remaining: entry.remaining + refund, days: newDays } }
+      return { ...prev, [name]: { ...entry, remaining: entry.remaining + refund, days: newDays } }
     })
   }
   function vacSetRemaining(name, val) {
@@ -715,11 +721,13 @@ export default function App() {
                     <div className="cell-todos">
                       {members.map(name => {
                         const dayEntry = getVacDay(name, day.dk)
-                        if (dayEntry.full === 0 && !dayEntry.half) return null
+                        if (!dayEntry.value) return null
                         return (
                           <div key={name} className="vac-cell-row">
-                            {dayEntry.full >= 1 && <span className="vac-cell-name">{name}</span>}
-                            {dayEntry.half && <span className="vac-cell-half">{name}/</span>}
+                            {dayEntry.value === 1
+                              ? <span className="vac-cell-name">{name}</span>
+                              : <span className="vac-cell-half">{name}/</span>
+                            }
                           </div>
                         )
                       })}
@@ -773,14 +781,14 @@ export default function App() {
                 : members.map(name => {
                   const dayEntry = getVacDay(name, vacModalDate)
                   const remaining = getVacRemaining(name)
-                  const hasEntry = dayEntry.full > 0 || dayEntry.half
+                  const hasEntry = (dayEntry.value || 0) > 0
                   return (
                     <div key={name} className="vac-modal-row">
                       <span className="vac-modal-name">{name}</span>
                       <span className="vac-modal-remain">잔여 {remaining}일</span>
                       <div className="vac-modal-btns">
                         <button className="vac-add-btn" onClick={() => vacAddFull(name, vacModalDate)}>+1</button>
-                        <button className="vac-add-btn" onClick={() => vacAddHalf(name, vacModalDate)}>+0.5</button>
+                        <button className={`vac-add-btn${dayEntry.value === 0.5 ? ' active' : ''}`} onClick={() => vacAddHalf(name, vacModalDate)}>+0.5</button>
                         {isAdmin && hasEntry && (
                           <button className="vac-remove-btn" onClick={() => vacClearDay(name, vacModalDate)}>×</button>
                         )}
