@@ -63,6 +63,74 @@ export default function App() {
   const [extraDays, setExtraDays] = useState(0)
   const [editExtraDays, setEditExtraDays] = useState(0)
 
+  // ── VACATION ──
+  // vacData: { [name]: { remaining: number, days: { [dk]: { full: number, half: boolean } } } }
+  const [vacMode, setVacMode] = useState(false)
+  const [vacData, setVacData] = useState({})
+  const [vacModalDate, setVacModalDate] = useState(null)
+
+  function getVacDay(name, dk) {
+    return vacData[name]?.days?.[dk] || { full: 0, half: false }
+  }
+  function getVacRemaining(name) {
+    return vacData[name]?.remaining ?? 0
+  }
+  function addDaysToKey(dk, n) {
+    const d = new Date(dk + 'T00:00:00')
+    d.setDate(d.getDate() + n)
+    return dateKey(d.getFullYear(), d.getMonth() + 1, d.getDate())
+  }
+  function vacAddFull(name, startDk) {
+    setVacData(prev => {
+      const entry = prev[name] || { remaining: 0, days: {} }
+      // 클릭한 날짜부터 연속된 다음 빈 날짜를 찾아서 추가
+      let targetDk = startDk
+      while ((entry.days[targetDk]?.full || 0) >= 1) {
+        targetDk = addDaysToKey(targetDk, 1)
+      }
+      return {
+        ...prev,
+        [name]: {
+          remaining: entry.remaining - 1,
+          days: { ...entry.days, [targetDk]: { ...(entry.days[targetDk] || { half: false }), full: 1 } }
+        }
+      }
+    })
+  }
+  function vacAddHalf(name, startDk) {
+    setVacData(prev => {
+      const entry = prev[name] || { remaining: 0, days: {} }
+      // 클릭한 날짜부터 full 또는 half 가 이미 있는 날짜는 건너뜀
+      let targetDk = startDk
+      while ((entry.days[targetDk]?.full || 0) >= 1 || entry.days[targetDk]?.half) {
+        targetDk = addDaysToKey(targetDk, 1)
+      }
+      return {
+        ...prev,
+        [name]: {
+          remaining: entry.remaining - 0.5,
+          days: { ...entry.days, [targetDk]: { ...(entry.days[targetDk] || { full: 0 }), half: true } }
+        }
+      }
+    })
+  }
+  function vacClearDay(name, dk) {
+    setVacData(prev => {
+      const entry = prev[name] || { remaining: 0, days: {} }
+      const day = entry.days[dk] || { full: 0, half: false }
+      const refund = day.full + (day.half ? 0.5 : 0)
+      const newDays = { ...entry.days }
+      delete newDays[dk]
+      return { ...prev, [name]: { remaining: entry.remaining + refund, days: newDays } }
+    })
+  }
+  function vacSetRemaining(name, val) {
+    setVacData(prev => ({
+      ...prev,
+      [name]: { ...(prev[name] || { remaining: 0, days: {} }), remaining: val }
+    }))
+  }
+
   // ── OTHER MODALS ──
   const [memberModalOpen, setMemberModalOpen] = useState(false)
   const [memberInput, setMemberInput] = useState('')
@@ -78,17 +146,20 @@ export default function App() {
   // ── API ──
   const loadSettings = useCallback(async () => {
     try {
-      const [mRes, memRes, pwRes] = await Promise.all([
+      const [mRes, memRes, pwRes, vacRes] = await Promise.all([
         fetch(`${SETTINGS_API}/memo`),
         fetch(`${SETTINGS_API}/members`),
         fetch(`${SETTINGS_API}/passwords`),
+        fetch(`${SETTINGS_API}/vacationData`),
       ])
       const mData = await mRes.json()
       const memData = await memRes.json()
       const pwData = await pwRes.json()
+      const vacD = await vacRes.json()
       if (mData.value !== null) setMemo(mData.value)
       if (memData.value !== null) setMembers(memData.value)
       if (pwData.value !== null) setPasswords(pwData.value)
+      if (vacD.value !== null) setVacData(vacD.value)
     } catch (e) { console.error('설정 로드 실패:', e) }
   }, [])
 
@@ -137,6 +208,16 @@ export default function App() {
       loadSettings()
     }
   }, [isLoggedIn, loadAllTodos, loadSettings])
+
+  // vacData 변경 시 DB 저장 (디바운스 500ms)
+  const vacDataRef = useRef(false)
+  useEffect(() => {
+    if (!vacDataRef.current) { vacDataRef.current = true; return } // 최초 마운트 스킵
+    const timer = setTimeout(() => {
+      saveSetting('vacationData', vacData)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [vacData])
 
   // Ctrl+F
   useEffect(() => {
@@ -559,6 +640,7 @@ export default function App() {
             </button>
           )}
           <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤 +</button>
+          <button className={`vac-toggle-btn${vacMode ? ' active' : ''}`} onClick={() => { setVacMode(v => !v); setVacModalDate(null) }}>연차</button>
         </div>
         <div className="month-tabs" ref={monthTabsRef}>
           {MONTHS.map((m, i) => (
@@ -568,7 +650,7 @@ export default function App() {
       </div>
 
       {/* CALENDAR */}
-      <div className="calendar-wrap">
+      {!vacMode && <div className="calendar-wrap">
         <div className="cal-grid">
           {DAYS.map((d, i) => (
             <div key={d} className={`day-header${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}`}>{d}</div>
@@ -611,7 +693,106 @@ export default function App() {
             )
           })}
         </div>
-      </div>
+      </div>}
+
+      {/* VACATION VIEW */}
+      {vacMode && (
+        <div className="vac-view">
+          <div className="calendar-wrap" style={{ flex: 1 }}>
+            <div className="cal-grid">
+              {DAYS.map((d, i) => (
+                <div key={d} className={`day-header${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}`}>{d}</div>
+              ))}
+              {calDays.map(day => {
+                if (day.empty) return <div key={day.key} className="cal-cell empty" />
+                return (
+                  <div
+                    key={day.dk}
+                    className={`cal-cell${day.isToday ? ' today' : ''}${day.dow === 0 ? ' sun-cell' : day.dow === 6 ? ' sat-cell' : ''}`}
+                    onClick={() => setVacModalDate(day.dk)}
+                  >
+                    <span className="cell-num">{day.d}</span>
+                    <div className="cell-todos">
+                      {members.map(name => {
+                        const dayEntry = getVacDay(name, day.dk)
+                        if (dayEntry.full === 0 && !dayEntry.half) return null
+                        return (
+                          <div key={name} className="vac-cell-row">
+                            {dayEntry.full >= 1 && <span className="vac-cell-name">{name}</span>}
+                            {dayEntry.half && <span className="vac-cell-half">{name}/</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          <div className="vac-sidebar">
+            <div className="vac-sidebar-title">연차 현황</div>
+            {members.length === 0
+              ? <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>👤 + 버튼으로 멤버 추가</div>
+              : members.map(name => (
+                <div key={name} className="vac-member-row">
+                  <span className="vac-member-name">{name}</span>
+                  {isAdmin
+                    ? <input
+                        className="vac-days-input"
+                        type="text"
+                        inputMode="decimal"
+                        value={getVacRemaining(name)}
+                        onChange={e => vacSetRemaining(name, parseFloat(e.target.value) || 0)}
+                      />
+                    : <span className="vac-days-input vac-days-readonly">{getVacRemaining(name)}</span>
+                  }
+                  <span className="vac-days-unit">일</span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+
+      {/* VACATION MODAL */}
+      {vacMode && vacModalDate && (
+        <div className="overlay-bg" onClick={e => { if (e.target === e.currentTarget) setVacModalDate(null) }}>
+          <div className="modal">
+            <div className="modal-handle" />
+            <div className="modal-header">
+              <span className="modal-date-label">{(() => {
+                const [y, m, d] = vacModalDate.split('-')
+                const dow = new Date(+y, +m - 1, +d).getDay()
+                return `${+y}년 ${+m}월 ${+d}일 (${DOW_KO[dow]})`
+              })()}</span>
+              <button className="modal-close" onClick={() => setVacModalDate(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              {members.length === 0
+                ? <div className="empty-msg">등록된 멤버가 없습니다</div>
+                : members.map(name => {
+                  const dayEntry = getVacDay(name, vacModalDate)
+                  const remaining = getVacRemaining(name)
+                  const hasEntry = dayEntry.full > 0 || dayEntry.half
+                  return (
+                    <div key={name} className="vac-modal-row">
+                      <span className="vac-modal-name">{name}</span>
+                      <span className="vac-modal-remain">잔여 {remaining}일</span>
+                      <div className="vac-modal-btns">
+                        <button className="vac-add-btn" onClick={() => vacAddFull(name, vacModalDate)}>+1</button>
+                        <button className="vac-add-btn" onClick={() => vacAddHalf(name, vacModalDate)}>+0.5</button>
+                        {isAdmin && hasEntry && (
+                          <button className="vac-remove-btn" onClick={() => vacClearDay(name, vacModalDate)}>×</button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              }
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DAY MODAL */}
       {selectedDate && (

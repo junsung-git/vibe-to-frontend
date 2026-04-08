@@ -129,6 +129,149 @@
   transition: color 0.15s, border-color 0.15s;
 }
 .admin-settings-btn:hover { color: var(--green); border-color: var(--green); }
+.vac-toggle-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.vac-toggle-btn:hover { border-color: #c0711b; color: #c0711b; }
+.vac-toggle-btn.active { background: #c0711b; color: #fff; border-color: #c0711b; }
+
+/* ── VACATION VIEW ── */
+.vac-view {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+.vac-sidebar {
+  width: 180px;
+  flex-shrink: 0;
+  border-left: 1.5px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vac-sidebar-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.vac-member-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--beige-dark);
+}
+.vac-member-name {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vac-days-input {
+  width: 54px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  outline: none;
+  color: var(--green);
+  background: var(--beige);
+  font-family: inherit;
+}
+.vac-days-input:focus { border-color: var(--green); }
+.vac-days-readonly {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  cursor: default;
+}
+.vac-days-unit { font-size: 0.65rem; color: var(--text-muted); }
+
+/* ── VACATION MODAL ── */
+.vac-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.vac-modal-name { flex: 1; font-size: 0.88rem; font-weight: 600; }
+.vac-modal-remain { font-size: 0.72rem; color: var(--text-muted); min-width: 56px; text-align: right; }
+.vac-add-btn {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--green-muted);
+  color: var(--green);
+  border: 1.5px solid var(--green);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.vac-add-btn:hover { background: var(--green); color: #fff; }
+.vac-remove-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #fff0f0;
+  color: #c0392b;
+  border: 1.5px solid #e88;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.vac-remove-btn:hover { background: #c0392b; color: #fff; }
+
+.vac-modal-btns { display: flex; gap: 4px; align-items: center; }
+.vac-add-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+.vac-cell-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1px;
+}
+.vac-cell-name {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1.2;
+}
+.vac-cell-half {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1.2;
+}
 
 /* ── MONTH TABS ── */
 .month-tabs {
