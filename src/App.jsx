@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import './App.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/todos'
+const SETTINGS_API = API.replace('/todos', '/settings')
 
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
 const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT']
@@ -49,10 +50,8 @@ export default function App() {
   const [curYear, setCurYear] = useState(today.getFullYear())
   const [curMonth, setCurMonth] = useState(today.getMonth())
   const [todosMap, setTodosMap] = useState({})
-  const [members, setMembers] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('alttab_members')) || [] } catch { return [] }
-  })
-  const [memo, setMemo] = useState(() => localStorage.getItem('alttab_memo') || '')
+  const [members, setMembers] = useState([])
+  const [memo, setMemo] = useState('')
 
   // ── DAY MODAL ──
   const [selectedDate, setSelectedDate] = useState(null)
@@ -79,6 +78,29 @@ export default function App() {
   const editInputRef = useRef(null)
 
   // ── API ──
+  const loadSettings = useCallback(async () => {
+    try {
+      const [mRes, memRes] = await Promise.all([
+        fetch(`${SETTINGS_API}/memo`),
+        fetch(`${SETTINGS_API}/members`),
+      ])
+      const mData = await mRes.json()
+      const memData = await memRes.json()
+      if (mData.value !== null) setMemo(mData.value)
+      if (memData.value !== null) setMembers(memData.value)
+    } catch (e) { console.error('설정 로드 실패:', e) }
+  }, [])
+
+  async function saveSetting(key, value) {
+    try {
+      await fetch(`${SETTINGS_API}/${key}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      })
+    } catch (e) { console.error('설정 저장 실패:', e) }
+  }
+
   const loadAllTodos = useCallback(async () => {
     try {
       const res = await fetch(API)
@@ -101,8 +123,11 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (isLoggedIn) loadAllTodos()
-  }, [isLoggedIn, loadAllTodos])
+    if (isLoggedIn) {
+      loadAllTodos()
+      loadSettings()
+    }
+  }, [isLoggedIn, loadAllTodos, loadSettings])
 
   // Ctrl+F
   useEffect(() => {
@@ -261,7 +286,7 @@ export default function App() {
   // ── MEMBERS ──
   function saveMembers(list) {
     setMembers(list)
-    localStorage.setItem('alttab_members', JSON.stringify(list))
+    saveSetting('members', list)
   }
   function addMember() {
     const name = memberInput.trim()
@@ -514,7 +539,7 @@ export default function App() {
             maxLength={200}
             autoComplete="off"
             value={memo}
-            onChange={e => { setMemo(e.target.value); localStorage.setItem('alttab_memo', e.target.value) }}
+            onChange={e => { setMemo(e.target.value); saveSetting('memo', e.target.value) }}
           />
         </div>
         <div className="header-actions">
