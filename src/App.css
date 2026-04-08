@@ -170,12 +170,14 @@
 }
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: auto repeat(6, minmax(52px, auto));
   border-left: 1px solid var(--border);
   border-top: 1px solid var(--border);
   background: var(--white);
   flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 .day-header {
   background: var(--beige);
@@ -195,11 +197,12 @@
   border-bottom: 1px solid var(--border);
   padding: 6px 8px 5px;
   min-height: 52px;
-  overflow: visible;
+  overflow: hidden;
   cursor: pointer;
   position: relative;
   transition: background 0.1s;
   background: var(--white);
+  min-width: 0;
 }
 .cal-cell:hover { background: var(--beige); }
 .cal-cell.empty { cursor: default; background: var(--beige); opacity: 0.5; }
@@ -248,30 +251,22 @@
 .cell-todo-item.done { color: var(--border); text-decoration: line-through; }
 
 /* ── SPAN (연속 일정) ── */
-.cell-todo-item.span-start,
-.cell-todo-item.span-middle,
-.cell-todo-item.span-end {
-  border-radius: 0;
-  margin-top: 1px;
-  margin-bottom: 1px;
-  padding-top: 1px;
-  padding-bottom: 1px;
-}
 .cell-todo-item.span-start {
   border-radius: 3px 0 0 3px;
-  margin-right: -9px;
-  padding-right: 4px;
+  margin-right: -8px;
+  padding-right: 2px;
 }
 .cell-todo-item.span-middle {
+  border-radius: 0;
   margin-left: -8px;
-  margin-right: -9px;
-  padding-left: 8px;
-  padding-right: 4px;
+  margin-right: -8px;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 .cell-todo-item.span-end {
   border-radius: 0 3px 3px 0;
   margin-left: -8px;
-  padding-left: 8px;
+  padding-left: 2px;
 }
 
 /* ── OVERLAY BASE ── */
