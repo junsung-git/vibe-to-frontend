@@ -508,11 +508,6 @@ export default function App() {
             value={memo}
             onChange={e => { setMemo(e.target.value); localStorage.setItem('alttab_memo', e.target.value) }}
           />
-          <div className="month-tabs" ref={monthTabsRef}>
-            {MONTHS.map((m, i) => (
-              <button key={m} className={i === curMonth ? 'active' : ''} onClick={() => setCurMonth(i)}>{m}</button>
-            ))}
-          </div>
         </div>
         <div className="header-actions">
           <span className="year-badge">{curYear}</span>
@@ -522,6 +517,11 @@ export default function App() {
             </button>
           )}
           <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤 +</button>
+        </div>
+        <div className="month-tabs" ref={monthTabsRef}>
+          {MONTHS.map((m, i) => (
+            <button key={m} className={i === curMonth ? 'active' : ''} onClick={() => setCurMonth(i)}>{m}</button>
+          ))}
         </div>
       </div>
 
