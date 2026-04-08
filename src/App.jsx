@@ -63,6 +63,7 @@ export default function App() {
   const [editColor, setEditColor] = useState(TODO_COLORS[0].color)
   const [openPickerId, setOpenPickerId] = useState(null)
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 })
+  const [extraDays, setExtraDays] = useState(0)
 
   // ── OTHER MODALS ──
   const [memberModalOpen, setMemberModalOpen] = useState(false)
@@ -172,16 +173,28 @@ export default function App() {
   }
 
   // ── TODO CRUD ──
+  function addDaysToKey(dk, n) {
+    const [y, m, d] = dk.split('-').map(Number)
+    const date = new Date(y, m - 1, d + n)
+    return dateKey(date.getFullYear(), date.getMonth() + 1, date.getDate())
+  }
+
   async function addTodo() {
     const text = newInput.trim()
     if (!text || !selectedDate) return
     try {
-      await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dateKey: selectedDate, text, assignee: '', color: selectedColor }),
-      })
+      const requests = []
+      for (let i = 0; i <= extraDays; i++) {
+        const dk = addDaysToKey(selectedDate, i)
+        requests.push(fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dateKey: dk, text, assignee: '', color: selectedColor }),
+        }))
+      }
+      await Promise.all(requests)
       setNewInput('')
+      setExtraDays(0)
       await loadAllTodos()
     } catch (e) { console.error('추가 실패:', e) }
   }
@@ -281,6 +294,7 @@ export default function App() {
     setSelectedColor(TODO_COLORS[0].color)
     setEditingId(null)
     setOpenPickerId(null)
+    setExtraDays(0)
   }
 
   function closeModal() {
@@ -511,6 +525,16 @@ export default function App() {
                 onChange={e => setNewInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addTodo()}
               />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                {extraDays > 0 && (
+                  <span style={{ fontSize: '0.7rem', color: 'var(--green)', fontWeight: 700, background: 'var(--green-muted)', borderRadius: '10px', padding: '2px 7px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    onClick={() => setExtraDays(0)}>
+                    +{extraDays}일 ×
+                  </span>
+                )}
+                <button style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', width: '28px', height: '28px', fontSize: '1rem', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                  onClick={() => setExtraDays(d => d + 1)} title="하루 더 추가">+</button>
+              </div>
               <button className="add-btn" onClick={addTodo}>추가</button>
             </div>
           </div>
