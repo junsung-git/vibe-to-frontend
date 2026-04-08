@@ -248,6 +248,11 @@
   flex-shrink: 0;
   font-weight: 600;
 }
+.assignee-short { display: none; }
+@media (max-width: 600px) {
+  .assignee-full { display: none; }
+  .assignee-short { display: inline; }
+}
 .cell-todo-item.done { color: var(--border); text-decoration: line-through; }
 
 /* ── SPAN (연속 일정) ── */
