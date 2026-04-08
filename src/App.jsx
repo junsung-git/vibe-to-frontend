@@ -64,6 +64,7 @@ export default function App() {
   const [openPickerId, setOpenPickerId] = useState(null)
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 })
   const [extraDays, setExtraDays] = useState(0)
+  const [editExtraDays, setEditExtraDays] = useState(0)
 
   // ── OTHER MODALS ──
   const [memberModalOpen, setMemberModalOpen] = useState(false)
@@ -219,15 +220,26 @@ export default function App() {
 
   async function finishEdit(todo) {
     const val = editText.trim()
+    const days = editExtraDays
     setEditingId(null)
+    setEditExtraDays(0)
     if (!val) { await loadAllTodos(); return }
     const prefix = todo.text.match(/^\d+ /) ? todo.text.match(/^\d+ /)[0] : ''
+    const newText = prefix + val
     try {
       await fetch(`${API}/${todo.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: prefix + val, color: editColor }),
+        body: JSON.stringify({ text: newText, color: editColor }),
       })
+      for (let i = 1; i <= days; i++) {
+        const dk = addDaysToKey(selectedDate, i)
+        await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dateKey: dk, text: newText, assignee: todo.assignee, color: editColor }),
+        })
+      }
       await loadAllTodos()
     } catch (e) { console.error('수정 실패:', e) }
   }
@@ -271,6 +283,47 @@ export default function App() {
     return matches.sort((a, b) => a.dk.localeCompare(b.dk))
   }, [searchQuery, todosMap])
 
+  // ── SPAN INFO ──
+  const spanInfo = useMemo(() => {
+    const result = {}
+    const byText = {}
+    Object.entries(todosMap).forEach(([dk, todos]) => {
+      todos.forEach(todo => {
+        const key = displayText(todo.text)
+        if (!byText[key]) byText[key] = []
+        byText[key].push({ dk, id: todo.id })
+      })
+    })
+    const SPAN_COLORS = ['#fff8e1','#e8f5e9','#e3f2fd','#fce4ec','#ede7f6','#e0f7fa','#fff3e0']
+    function spanBg(text) {
+      let h = 0
+      for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) & 0xffff
+      return SPAN_COLORS[h % SPAN_COLORS.length]
+    }
+    Object.entries(byText).forEach(([text, entries]) => {
+      if (entries.length < 2) return
+      entries.sort((a, b) => a.dk.localeCompare(b.dk))
+      let seq = [entries[0]]
+      const seqs = []
+      for (let i = 1; i < entries.length; i++) {
+        const [py,pm,pd] = entries[i-1].dk.split('-').map(Number)
+        const [cy,cm,cd] = entries[i].dk.split('-').map(Number)
+        const diff = (new Date(cy,cm-1,cd) - new Date(py,pm-1,pd)) / 86400000
+        if (diff === 1) seq.push(entries[i])
+        else { seqs.push(seq); seq = [entries[i]] }
+      }
+      seqs.push(seq)
+      const bg = spanBg(text)
+      seqs.forEach(sq => {
+        if (sq.length < 2) return
+        sq.forEach((e, i) => {
+          result[e.id] = { type: i === 0 ? 'start' : i === sq.length-1 ? 'end' : 'middle', bg }
+        })
+      })
+    })
+    return result
+  }, [todosMap])
+
   // ── CALENDAR GRID ──
   const calDays = useMemo(() => {
     const firstDay = new Date(curYear, curMonth, 1).getDay()
@@ -295,6 +348,7 @@ export default function App() {
     setEditingId(null)
     setOpenPickerId(null)
     setExtraDays(0)
+    setEditExtraDays(0)
   }
 
   function closeModal() {
@@ -422,9 +476,13 @@ export default function App() {
               >
                 <span className="cell-num">{day.d}</span>
                 <div className="cell-todos">
-                  {todos.map(t => (
-                    <div key={t.id} className={`cell-todo-item${t.done ? ' done' : ''}`}
-                      style={t.color && !t.done ? { color: t.color } : {}}>
+                  {todos.map(t => {
+                    const sp = spanInfo[t.id]
+                    const spanCls = sp ? ` span-${sp.type}` : ''
+                    const spanStyle = sp ? { backgroundColor: sp.bg, ...(t.color && !t.done ? { color: t.color } : {}) } : (t.color && !t.done ? { color: t.color } : {})
+                    return (
+                    <div key={t.id} className={`cell-todo-item${t.done ? ' done' : ''}${spanCls}`}
+                      style={spanStyle}>
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {displayText(t.text)}
                       </span>
@@ -434,7 +492,8 @@ export default function App() {
                         </span>
                       )}
                     </div>
-                  ))}
+                  )
+                  })}
                 </div>
               </div>
             )
@@ -480,9 +539,19 @@ export default function App() {
                             onBlur={() => finishEdit(todo)}
                             onKeyDown={e => {
                               if (e.key === 'Enter') editInputRef.current?.blur()
-                              if (e.key === 'Escape') setEditingId(null)
+                              if (e.key === 'Escape') { setEditingId(null); setEditExtraDays(0) }
                             }}
                           />
+                          {editExtraDays > 0 && (
+                            <span onMouseDown={e => { e.preventDefault(); setEditExtraDays(0) }}
+                              style={{ fontSize: '0.68rem', color: 'var(--green)', fontWeight: 700, background: 'var(--green-muted)', borderRadius: '10px', padding: '2px 6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                              +{editExtraDays}일 ×
+                            </span>
+                          )}
+                          <button
+                            onMouseDown={e => { e.preventDefault(); setEditExtraDays(d => d + 1) }}
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', width: '24px', height: '24px', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                            title="하루 더 추가">+</button>
                         </div>
                       ) : (
                         <>

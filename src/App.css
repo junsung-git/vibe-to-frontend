@@ -162,8 +162,7 @@
   border-bottom: 1px solid var(--border);
   padding: 6px 8px 5px;
   min-height: 52px;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: visible;
   cursor: pointer;
   position: relative;
   transition: background 0.1s;
@@ -208,6 +207,33 @@
   font-weight: 600;
 }
 .cell-todo-item.done { color: var(--border); text-decoration: line-through; }
+
+/* ── SPAN (연속 일정) ── */
+.cell-todo-item.span-start,
+.cell-todo-item.span-middle,
+.cell-todo-item.span-end {
+  border-radius: 0;
+  margin-top: 1px;
+  margin-bottom: 1px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.cell-todo-item.span-start {
+  border-radius: 3px 0 0 3px;
+  margin-right: -9px;
+  padding-right: 4px;
+}
+.cell-todo-item.span-middle {
+  margin-left: -8px;
+  margin-right: -9px;
+  padding-left: 8px;
+  padding-right: 4px;
+}
+.cell-todo-item.span-end {
+  border-radius: 0 3px 3px 0;
+  margin-left: -8px;
+  padding-left: 8px;
+}
 
 /* ── OVERLAY BASE ── */
 .overlay-bg {
