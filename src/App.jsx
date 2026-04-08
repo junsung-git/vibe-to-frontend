@@ -329,17 +329,83 @@ export default function App() {
     const firstDay = new Date(curYear, curMonth, 1).getDay()
     const lastDate = new Date(curYear, curMonth + 1, 0).getDate()
     const days = []
-    for (let i = 0; i < firstDay; i++) days.push({ empty: true, key: `e${i}` })
+    for (let i = 0; i < firstDay; i++) days.push({ empty: true, key: `e${i}`, weekIdx: Math.floor(i / 7) })
     for (let d = 1; d <= lastDate; d++) {
       const dk = dateKey(curYear, curMonth + 1, d)
       const dow = (firstDay + d - 1) % 7
+      const posIdx = firstDay + d - 1
       days.push({
         empty: false, d, dk, dow,
+        weekIdx: Math.floor(posIdx / 7),
         isToday: d === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear(),
       })
     }
     return days
   }, [curYear, curMonth, today])
+
+  // ── SLOT ASSIGNMENT (같은 줄 정렬) ──
+  const slotData = useMemo(() => {
+    const assignment = {} // { dk: { todoId: slotIndex } }
+    const weekMaxSlots = {} // { weekIdx: count }
+
+    const weeks = []
+    let week = []
+    calDays.forEach(day => {
+      week.push(day)
+      if (week.length === 7) { weeks.push(week); week = [] }
+    })
+    if (week.length > 0) weeks.push(week)
+
+    weeks.forEach((week, wi) => {
+      const validDays = week.filter(d => !d.empty)
+      const occupied = [] // occupied[slot] = Set<dk>
+
+      // 1) 스팬 할일 먼저 슬롯 배정 (같은 텍스트끼리 같은 슬롯)
+      const spanGroups = {}
+      validDays.forEach(day => {
+        sortTodos(todosMap[day.dk] || []).forEach(todo => {
+          if (spanInfo[todo.id]) {
+            const key = displayText(todo.text) + '§' + spanInfo[todo.id].bg
+            if (!spanGroups[key]) spanGroups[key] = []
+            spanGroups[key].push({ dk: day.dk, id: todo.id })
+          }
+        })
+      })
+      Object.values(spanGroups).forEach(entries => {
+        const dks = entries.map(e => e.dk)
+        let s = 0
+        while (dks.some(dk => occupied[s] && occupied[s].has(dk))) s++
+        entries.forEach(e => {
+          if (!assignment[e.dk]) assignment[e.dk] = {}
+          assignment[e.dk][e.id] = s
+        })
+        if (!occupied[s]) occupied[s] = new Set()
+        dks.forEach(dk => occupied[s].add(dk))
+      })
+
+      // 2) 나머지 할일 슬롯 채우기
+      validDays.forEach(day => {
+        if (!assignment[day.dk]) assignment[day.dk] = {}
+        sortTodos(todosMap[day.dk] || []).forEach(todo => {
+          if (assignment[day.dk][todo.id] === undefined) {
+            let s = 0
+            while (occupied[s] && occupied[s].has(day.dk)) s++
+            assignment[day.dk][todo.id] = s
+            if (!occupied[s]) occupied[s] = new Set()
+            occupied[s].add(day.dk)
+          }
+        })
+      })
+
+      let max = 0
+      validDays.forEach(day => {
+        if (assignment[day.dk]) Object.values(assignment[day.dk]).forEach(s => { max = Math.max(max, s + 1) })
+      })
+      weekMaxSlots[wi] = max
+    })
+
+    return { assignment, weekMaxSlots }
+  }, [calDays, todosMap, spanInfo])
 
   function openModal(dk) {
     setSelectedDate(dk)
@@ -468,6 +534,9 @@ export default function App() {
           {calDays.map(day => {
             if (day.empty) return <div key={day.key} className="cal-cell empty" />
             const todos = sortTodos(todosMap[day.dk] || [])
+            const daySlots = slotData.assignment[day.dk] || {}
+            const slotCount = slotData.weekMaxSlots[day.weekIdx] || 0
+            const slotTodos = Array.from({ length: slotCount }, (_, s) => todos.find(t => daySlots[t.id] === s) || null)
             return (
               <div
                 key={day.dk}
@@ -476,23 +545,23 @@ export default function App() {
               >
                 <span className="cell-num">{day.d}</span>
                 <div className="cell-todos">
-                  {todos.map(t => {
+                  {slotTodos.map((t, s) => {
+                    if (!t) return <div key={`sp-${s}`} className="cell-slot-spacer" />
                     const sp = spanInfo[t.id]
                     const spanCls = sp ? ` span-${sp.type}` : ''
                     const spanStyle = sp ? { backgroundColor: sp.bg, ...(t.color && !t.done ? { color: t.color } : {}) } : (t.color && !t.done ? { color: t.color } : {})
                     return (
-                    <div key={t.id} className={`cell-todo-item${t.done ? ' done' : ''}${spanCls}`}
-                      style={spanStyle}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                        {displayText(t.text)}
-                      </span>
-                      {t.assignee && (
-                        <span className="cell-assignee" style={t.color && !t.done ? { color: t.color } : {}}>
-                          {t.assignee}
+                      <div key={t.id} className={`cell-todo-item${t.done ? ' done' : ''}${spanCls}`} style={spanStyle}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          {displayText(t.text)}
                         </span>
-                      )}
-                    </div>
-                  )
+                        {t.assignee && (
+                          <span className="cell-assignee" style={t.color && !t.done ? { color: t.color } : {}}>
+                            {t.assignee}
+                          </span>
+                        )}
+                      </div>
+                    )
                   })}
                 </div>
               </div>

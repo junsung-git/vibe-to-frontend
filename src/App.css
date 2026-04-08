@@ -194,11 +194,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.5;
+  height: 16px;
+  line-height: 16px;
   max-width: 100%;
   display: flex;
   gap: 3px;
   align-items: center;
+  flex-shrink: 0;
+}
+.cell-slot-spacer {
+  height: 16px;
+  flex-shrink: 0;
 }
 .cell-todo-item .cell-assignee {
   font-size: 0.55rem;
