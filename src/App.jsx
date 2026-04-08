@@ -69,6 +69,7 @@ export default function App() {
   const [vacMode, setVacMode] = useState(false)
   const [vacData, setVacData] = useState({})
   const [vacModalDate, setVacModalDate] = useState(null)
+  const [vacDaysOpen, setVacDaysOpen] = useState(false)
 
   function getVacDay(name, dk) {
     return vacData[name]?.days?.[dk] || { value: 0 }
@@ -133,8 +134,18 @@ export default function App() {
   function vacSetRemaining(name, val) {
     setVacData(prev => ({
       ...prev,
-      [name]: { ...(prev[name] || { remaining: 0, days: {} }), remaining: val }
+      [name]: { ...(prev[name] || { total: 0, remaining: 0, days: {} }), remaining: val }
     }))
+  }
+  function vacSetTotal(name, val) {
+    setVacData(prev => {
+      const entry = prev[name] || { total: 0, remaining: 0, days: {} }
+      const used = Object.values(entry.days || {}).reduce((sum, d) => sum + (d.value || 0), 0)
+      return { ...prev, [name]: { ...entry, total: val, remaining: val - used } }
+    })
+  }
+  function getVacTotal(name) {
+    return vacData[name]?.total ?? 0
   }
 
   // ── OTHER MODALS ──
@@ -459,7 +470,16 @@ export default function App() {
     const firstDay = new Date(curYear, curMonth, 1).getDay()
     const lastDate = new Date(curYear, curMonth + 1, 0).getDate()
     const days = []
-    for (let i = 0; i < firstDay; i++) days.push({ empty: true, key: `e${i}`, weekIdx: Math.floor(i / 7) })
+    // 이전 달 날짜 채우기
+    const prevLastDate = new Date(curYear, curMonth, 0).getDate()
+    for (let i = 0; i < firstDay; i++) {
+      const d = prevLastDate - (firstDay - 1 - i)
+      const prevMonth = curMonth === 0 ? 12 : curMonth
+      const prevYear = curMonth === 0 ? curYear - 1 : curYear
+      const dk = dateKey(prevYear, prevMonth, d)
+      days.push({ empty: false, d, dk, dow: i, weekIdx: 0, faded: true, key: `prev-${dk}` })
+    }
+    // 현재 달 날짜
     for (let d = 1; d <= lastDate; d++) {
       const dk = dateKey(curYear, curMonth + 1, d)
       const dow = (firstDay + d - 1) % 7
@@ -469,6 +489,16 @@ export default function App() {
         weekIdx: Math.floor(posIdx / 7),
         isToday: d === today.getDate() && curMonth === today.getMonth() && curYear === today.getFullYear(),
       })
+    }
+    // 다음 달 날짜 채우기 (마지막 주 남은 칸)
+    const totalCells = days.length
+    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7)
+    for (let i = 1; i <= remaining; i++) {
+      const nextMonth = curMonth === 11 ? 1 : curMonth + 2
+      const nextYear = curMonth === 11 ? curYear + 1 : curYear
+      const dk = dateKey(nextYear, nextMonth, i)
+      const posIdx = totalCells + i - 1
+      days.push({ empty: false, d: i, dk, dow: (totalCells + i - 1) % 7, weekIdx: Math.floor(posIdx / 7), faded: true, key: `next-${dk}` })
     }
     return days
   }, [curYear, curMonth, today])
@@ -664,6 +694,18 @@ export default function App() {
           {calDays.map(day => {
             if (day.empty) return <div key={day.key} className="cal-cell empty" />
             const todos = sortTodos(todosMap[day.dk] || [])
+            if (day.faded) return (
+              <div key={day.key} className={`cal-cell faded${day.dow === 0 ? ' sun-cell' : day.dow === 6 ? ' sat-cell' : ''}`}>
+                <span className="cell-num">{day.d}</span>
+                <div className="cell-todos">
+                  {todos.map(t => (
+                    <div key={t.id} className={`cell-todo-item${t.done ? ' done' : ''}`}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{displayText(t.text)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
             const daySlots = slotData.assignment[day.dk] || {}
             const slotCount = slotData.weekMaxSlots[day.weekIdx] || 0
             const slotTodos = Array.from({ length: slotCount }, (_, s) => todos.find(t => daySlots[t.id] === s) || null)
@@ -704,7 +746,48 @@ export default function App() {
       {/* VACATION VIEW */}
       {vacMode && (
         <div className="vac-view">
-          <div className="calendar-wrap" style={{ flex: 1 }}>
+          {/* 일수등록 팝업 버튼 */}
+          <button
+            className={`vac-days-open-btn${vacDaysOpen ? ' open' : ''}`}
+            onClick={() => setVacDaysOpen(v => !v)}
+            title="일수등록"
+          >▲</button>
+          {vacDaysOpen && (
+            <div className="vac-days-popup">
+              <div className="vac-days-popup-title">일수등록</div>
+              {members.length === 0
+                ? <div className="vac-days-popup-empty">멤버 없음</div>
+                : members.map(name => (
+                  <div key={name} className="vac-days-popup-row">
+                    <span className="vac-days-popup-name">{name}</span>
+                    <div className="vac-days-popup-fields">
+                      <div className="vac-days-popup-field">
+                        <span className="vac-days-field-label">총</span>
+                        {isAdmin
+                          ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
+                              value={getVacTotal(name)}
+                              onChange={e => vacSetTotal(name, parseFloat(e.target.value) || 0)} />
+                          : <span className="vac-days-popup-input vac-days-readonly">{getVacTotal(name)}</span>
+                        }
+                        <span className="vac-days-unit">일</span>
+                      </div>
+                      <div className="vac-days-popup-field">
+                        <span className="vac-days-field-label">잔여</span>
+                        {isAdmin
+                          ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
+                              value={getVacRemaining(name)}
+                              onChange={e => vacSetRemaining(name, parseFloat(e.target.value) || 0)} />
+                          : <span className="vac-days-popup-input vac-days-readonly">{getVacRemaining(name)}</span>
+                        }
+                        <span className="vac-days-unit">일</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          )}
+          <div className="calendar-wrap">
             <div className="cal-grid">
               {DAYS.map((d, i) => (
                 <div key={d} className={`day-header${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}`}>{d}</div>
@@ -715,7 +798,7 @@ export default function App() {
                   <div
                     key={day.dk}
                     className={`cal-cell${day.isToday ? ' today' : ''}${day.dow === 0 ? ' sun-cell' : day.dow === 6 ? ' sat-cell' : ''}`}
-                    onClick={() => setVacModalDate(day.dk)}
+                    onClick={() => { setVacModalDate(day.dk); setVacDaysOpen(false) }}
                   >
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
@@ -736,28 +819,6 @@ export default function App() {
                 )
               })}
             </div>
-          </div>
-          <div className="vac-sidebar">
-            <div className="vac-sidebar-title">연차 현황</div>
-            {members.length === 0
-              ? <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>👤 + 버튼으로 멤버 추가</div>
-              : members.map(name => (
-                <div key={name} className="vac-member-row">
-                  <span className="vac-member-name">{name}</span>
-                  {isAdmin
-                    ? <input
-                        className="vac-days-input"
-                        type="text"
-                        inputMode="decimal"
-                        value={getVacRemaining(name)}
-                        onChange={e => vacSetRemaining(name, parseFloat(e.target.value) || 0)}
-                      />
-                    : <span className="vac-days-input vac-days-readonly">{getVacRemaining(name)}</span>
-                  }
-                  <span className="vac-days-unit">일</span>
-                </div>
-              ))
-            }
           </div>
         </div>
       )}
@@ -785,7 +846,7 @@ export default function App() {
                   return (
                     <div key={name} className="vac-modal-row">
                       <span className="vac-modal-name">{name}</span>
-                      <span className="vac-modal-remain">잔여 {remaining}일</span>
+                      <span className="vac-modal-remain">총 {getVacTotal(name)}일 / 잔여 {remaining}일</span>
                       <div className="vac-modal-btns">
                         <button className="vac-add-btn" onClick={() => vacAddFull(name, vacModalDate)}>+1</button>
                         <button className={`vac-add-btn${dayEntry.value === 0.5 ? ' active' : ''}`} onClick={() => vacAddHalf(name, vacModalDate)}>+0.5</button>
