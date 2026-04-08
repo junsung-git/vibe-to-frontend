@@ -310,7 +310,10 @@ export default function App() {
           <div className="login-box">
             <div className="login-logo">ALTTAB <span>SCHEDULE</span></div>
             <div className="login-subtitle">사무실 스케줄 관리</div>
-            <div className="login-mode-label">{loginMode === 'guest' ? '게스트 입장' : '관리자 입장'}</div>
+            <div className="login-mode-label" style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              {loginMode === 'guest' ? '게스트 입장' : '관리자 입장'}
+              {loginMode === 'guest' && <span style={{fontSize:'0.62rem',color:'var(--text-muted)',fontWeight:400}}>pw 0000</span>}
+            </div>
             <div className="login-pw-row">
               <input
                 type="password"
