@@ -69,6 +69,8 @@ export default function App() {
   // ── OTHER MODALS ──
   const [memberModalOpen, setMemberModalOpen] = useState(false)
   const [memberInput, setMemberInput] = useState('')
+  const [editingMember, setEditingMember] = useState(null)
+  const [editMemberText, setEditMemberText] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -266,6 +268,12 @@ export default function App() {
     if (!name || members.includes(name)) return
     saveMembers([...members, name])
     setMemberInput('')
+  }
+  function finishMemberEdit(oldName) {
+    const newName = editMemberText.trim()
+    setEditingMember(null)
+    if (!newName || newName === oldName || members.includes(newName)) return
+    saveMembers(members.map(m => m === oldName ? newName : m))
   }
 
   // ── SEARCH ──
@@ -755,7 +763,18 @@ export default function App() {
                 ? <div className="empty-msg">등록된 멤버가 없습니다</div>
                 : members.map(name => (
                   <div key={name} className="member-item">
-                    <span>👤 {name}</span>
+                    {editingMember === name ? (
+                      <input
+                        autoFocus
+                        style={{ flex: 1, border: 'none', borderBottom: '1.5px solid var(--green)', outline: 'none', fontSize: '0.85rem', fontFamily: 'inherit', padding: '2px 0', background: 'transparent' }}
+                        value={editMemberText}
+                        onChange={e => setEditMemberText(e.target.value)}
+                        onBlur={() => finishMemberEdit(name)}
+                        onKeyDown={e => { if (e.key === 'Enter') finishMemberEdit(name); if (e.key === 'Escape') setEditingMember(null) }}
+                      />
+                    ) : (
+                      <span style={{ flex: 1, cursor: 'pointer' }} onClick={() => { setEditingMember(name); setEditMemberText(name) }}>👤 {name}</span>
+                    )}
                     <button className="del-member" onClick={() => saveMembers(members.filter(m => m !== name))}>×</button>
                   </div>
                 ))
