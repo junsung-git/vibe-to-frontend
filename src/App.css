@@ -238,9 +238,6 @@
   align-items: center;
   flex-shrink: 0;
 }
-.cell-todo-item > span:first-child {
-  min-width: 2em;
-}
 .cell-slot-spacer {
   height: 16px;
   flex-shrink: 0;

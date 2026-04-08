@@ -585,7 +585,7 @@ export default function App() {
                     return (
                       <div key={t.id} className={`cell-todo-item${t.done ? ' done' : ''}${spanCls}`} style={spanStyle}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                          {displayText(t.text)}
+                          {displayText(t.text).slice(0, 1)}…
                         </span>
                         {t.assignee && (
                           <span className="cell-assignee" style={t.color && !t.done ? { color: t.color } : {}}>
