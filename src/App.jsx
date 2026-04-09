@@ -83,21 +83,24 @@ export default function App() {
   }
 
   // 입사일 기준 법정 연차 계산 (근로기준법 제60조)
+  // targetYear 해에 새로 발생하는 연차 기준
   function calcAnnualLeave(joinDateStr, targetYear) {
     if (!joinDateStr) return 0
     const join = new Date(joinDateStr + 'T00:00:00')
-    const targetEnd = new Date(targetYear, 11, 31) // 해당 연도 말
-    const monthsDiff = (targetEnd.getFullYear() - join.getFullYear()) * 12 + (targetEnd.getMonth() - join.getMonth())
-    if (monthsDiff < 1) return 0
-    // 해당 연도 1월 1일 기준 근속연수
-    const refDate = new Date(targetYear, 0, 1)
-    const years = (refDate - join) / (1000 * 60 * 60 * 24 * 365.25)
+    const jan1 = new Date(targetYear, 0, 1)
+    // 입사일이 해당 연도보다 미래면 연차 없음
+    if (join > new Date(targetYear, 11, 31)) return 0
+    // 해당 연도 1월 1일 기준 만 근속 개월 수
+    const totalMonths = (jan1.getFullYear() - join.getFullYear()) * 12 + (jan1.getMonth() - join.getMonth())
+    const totalYears = Math.floor(totalMonths / 12)
     let annualLeave
-    if (years < 1) {
-      // 1년 미만: 해당 연도 내 개근 월수 (최대 11)
-      annualLeave = Math.min(Math.floor(monthsDiff), 11)
+    if (totalMonths < 12) {
+      // 아직 1년 미만: 해당 연도 내 발생하는 월 단위 연차 (최대 11)
+      const monthsInYear = Math.min(12 - totalMonths, 12)
+      annualLeave = Math.min(monthsInYear, 11)
     } else {
-      annualLeave = Math.min(15 + Math.floor((Math.floor(years) - 1) / 2), 25)
+      // 1년 이상: 15일 + 2년마다 1일 (최대 25)
+      annualLeave = Math.min(15 + Math.floor((totalYears - 1) / 2), 25)
     }
     return annualLeave + getWeekdayHolidays(targetYear)
   }
@@ -858,7 +861,7 @@ export default function App() {
                             onChange={e => { vacSetJoinDate(name, e.target.value); setJoinDateEditName(null) }}
                           />
                         )}
-                        {joinDate && <span className="vac-join-label">{joinDate.slice(0,7)} 입사</span>}
+                        {joinDate && <span className="vac-join-label">{joinDate}</span>}
                       </div>
                       <div className="vac-days-popup-fields">
                         <div className="vac-days-popup-field">
