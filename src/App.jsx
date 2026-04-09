@@ -72,37 +72,54 @@ export default function App() {
   const [yearPickerOpen, setYearPickerOpen] = useState(false)
   const [joinDateEditName, setJoinDateEditName] = useState(null)
 
-  // 연도별 평일 공휴일 수
-  const WEEKDAY_HOLIDAYS = {
-    2024: 11,
-    2025: 15,
-    2026: 14,
-  }
-  function getWeekdayHolidays(year) {
-    return WEEKDAY_HOLIDAYS[year] ?? 11
+  // 연도별 법정 평일 공휴일 목록 (YYYY-MM-DD)
+  const HOLIDAYS_BY_YEAR = {
+    2024: ['2024-01-01','2024-02-09','2024-02-10','2024-02-12','2024-03-01','2024-04-10',
+           '2024-05-06','2024-05-15','2024-06-06','2024-08-15','2024-09-16','2024-09-17',
+           '2024-09-18','2024-10-03','2024-10-09','2024-12-25'],
+    2025: ['2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-01-30','2025-03-03',
+           '2025-05-05','2025-05-06','2025-06-03','2025-06-06','2025-08-15','2025-10-03',
+           '2025-10-06','2025-10-07','2025-10-08','2025-10-09','2025-12-25'],
+    2026: ['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-05',
+           '2026-05-25','2026-06-03','2026-07-17','2026-08-17','2026-09-24','2026-09-25',
+           '2026-10-05','2026-10-09','2026-12-25'],
   }
 
-  // 입사일 기준 법정 연차 계산 (근로기준법 제60조)
-  // targetYear 해에 새로 발생하는 연차 기준
+  // 해당 연도에서 fromDate 이후 평일 공휴일 수
+  function getWeekdayHolidaysFrom(year, fromDate) {
+    const list = HOLIDAYS_BY_YEAR[year] || []
+    return list.filter(d => {
+      const dt = new Date(d + 'T00:00:00')
+      const dow = dt.getDay()
+      return dow !== 0 && dow !== 6 && dt >= fromDate
+    }).length
+  }
+
+  // 입사일 기준 법정 연차 계산 (근로기준법 제60조) + 공휴일
   function calcAnnualLeave(joinDateStr, targetYear) {
     if (!joinDateStr) return 0
     const join = new Date(joinDateStr + 'T00:00:00')
+    const yearEnd = new Date(targetYear, 11, 31)
+    if (join > yearEnd) return 0
+
     const jan1 = new Date(targetYear, 0, 1)
-    // 입사일이 해당 연도보다 미래면 연차 없음
-    if (join > new Date(targetYear, 11, 31)) return 0
-    // 해당 연도 1월 1일 기준 만 근속 개월 수
+    // 해당 연도 1월 1일 기준 만 근속 개월
     const totalMonths = (jan1.getFullYear() - join.getFullYear()) * 12 + (jan1.getMonth() - join.getMonth())
     const totalYears = Math.floor(totalMonths / 12)
+
     let annualLeave
     if (totalMonths < 12) {
-      // 아직 1년 미만: 해당 연도 내 발생하는 월 단위 연차 (최대 11)
-      const monthsInYear = Math.min(12 - totalMonths, 12)
-      annualLeave = Math.min(monthsInYear, 11)
+      // 입사 첫해: 입사일 다음 달부터 연도 말까지 월차 발생 (최대 11)
+      const fromMonth = new Date(join.getFullYear(), join.getMonth() + 1, 1)
+      const monthsLeft = (yearEnd.getFullYear() - fromMonth.getFullYear()) * 12 + (yearEnd.getMonth() - fromMonth.getMonth()) + 1
+      annualLeave = Math.min(Math.max(monthsLeft, 0), 11)
+      // 공휴일도 입사일 이후분만
+      return annualLeave + getWeekdayHolidaysFrom(targetYear, join)
     } else {
-      // 1년 이상: 15일 + 2년마다 1일 (최대 25)
+      // 1년 이상: 연차 15일~ + 해당 연도 공휴일 전체
       annualLeave = Math.min(15 + Math.floor((totalYears - 1) / 2), 25)
+      return annualLeave + getWeekdayHolidaysFrom(targetYear, jan1)
     }
-    return annualLeave + getWeekdayHolidays(targetYear)
   }
 
   function vacSetJoinDate(name, joinDate) {
