@@ -634,7 +634,7 @@ export default function App() {
             <div className="login-logo">ALTTAB <span>SCHEDULE</span></div>
             <div className="login-subtitle">사무실 스케줄 관리</div>
             <div className="login-mode-label">
-              {loginMode === 'guest' ? '게스트 입장' : '관리자 입장'}
+              {loginMode === 'guest' ? '' : '관리자 입장'}
             </div>
             <div className="login-pw-row">
               <input
