@@ -64,13 +64,52 @@ export default function App() {
   const [editExtraDays, setEditExtraDays] = useState(0)
 
   // ── VACATION ──
-  // vacData: { [name]: { remaining: number, days: { [dk]: { value: 0 | 0.5 | 1 } } } }
-  // value 0.5 = 이름/  (반차),  value 1 = 이름  (연차)
+  // vacData: { [name]: { remaining, total, joinDate, days: { [dk]: { value, halfType } } } }
   const [vacMode, setVacMode] = useState(false)
   const [vacData, setVacData] = useState({})
   const [vacModalDate, setVacModalDate] = useState(null)
   const [vacDaysOpen, setVacDaysOpen] = useState(false)
   const [yearPickerOpen, setYearPickerOpen] = useState(false)
+  const [joinDateEditName, setJoinDateEditName] = useState(null)
+
+  // 연도별 평일 공휴일 수
+  const WEEKDAY_HOLIDAYS = {
+    2024: 11,
+    2025: 15,
+    2026: 14,
+  }
+  function getWeekdayHolidays(year) {
+    return WEEKDAY_HOLIDAYS[year] ?? 11
+  }
+
+  // 입사일 기준 법정 연차 계산 (근로기준법 제60조)
+  function calcAnnualLeave(joinDateStr, targetYear) {
+    if (!joinDateStr) return 0
+    const join = new Date(joinDateStr + 'T00:00:00')
+    const targetEnd = new Date(targetYear, 11, 31) // 해당 연도 말
+    const monthsDiff = (targetEnd.getFullYear() - join.getFullYear()) * 12 + (targetEnd.getMonth() - join.getMonth())
+    if (monthsDiff < 1) return 0
+    // 해당 연도 1월 1일 기준 근속연수
+    const refDate = new Date(targetYear, 0, 1)
+    const years = (refDate - join) / (1000 * 60 * 60 * 24 * 365.25)
+    let annualLeave
+    if (years < 1) {
+      // 1년 미만: 해당 연도 내 개근 월수 (최대 11)
+      annualLeave = Math.min(Math.floor(monthsDiff), 11)
+    } else {
+      annualLeave = Math.min(15 + Math.floor((Math.floor(years) - 1) / 2), 25)
+    }
+    return annualLeave + getWeekdayHolidays(targetYear)
+  }
+
+  function vacSetJoinDate(name, joinDate) {
+    setVacData(prev => {
+      const entry = prev[name] || { total: 0, remaining: 0, days: {} }
+      const used = Object.values(entry.days || {}).reduce((s, d) => s + (d.value || 0), 0)
+      const newTotal = calcAnnualLeave(joinDate, curYear)
+      return { ...prev, [name]: { ...entry, joinDate, total: newTotal, remaining: newTotal - used } }
+    })
+  }
 
   function getVacDay(name, dk) {
     return vacData[name]?.days?.[dk] || { value: 0 }
@@ -801,33 +840,51 @@ export default function App() {
               <div className="vac-days-popup-title">일수등록</div>
               {members.length === 0
                 ? <div className="vac-days-popup-empty">멤버 없음</div>
-                : members.map(name => (
-                  <div key={name} className="vac-days-popup-row">
-                    <span className="vac-days-popup-name">{name}</span>
-                    <div className="vac-days-popup-fields">
-                      <div className="vac-days-popup-field">
-                        <span className="vac-days-field-label">총</span>
-                        {isAdmin
-                          ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
-                              value={getVacTotal(name)}
-                              onChange={e => vacSetTotal(name, parseFloat(e.target.value) || 0)} />
-                          : <span className="vac-days-popup-input vac-days-readonly">{getVacTotal(name)}</span>
-                        }
-                        <span className="vac-days-unit">일</span>
+                : members.map(name => {
+                  const joinDate = vacData[name]?.joinDate || ''
+                  return (
+                    <div key={name} className="vac-days-popup-row">
+                      <div className="vac-days-popup-nameblock">
+                        <span
+                          className={`vac-days-popup-name${isAdmin ? ' clickable' : ''}`}
+                          onClick={() => isAdmin && setJoinDateEditName(joinDateEditName === name ? null : name)}
+                          title={isAdmin ? '클릭하여 입사일 설정' : ''}
+                        >{name}</span>
+                        {isAdmin && joinDateEditName === name && (
+                          <input
+                            className="vac-join-input"
+                            type="date"
+                            value={joinDate}
+                            onChange={e => { vacSetJoinDate(name, e.target.value); setJoinDateEditName(null) }}
+                          />
+                        )}
+                        {joinDate && <span className="vac-join-label">{joinDate.slice(0,7)} 입사</span>}
                       </div>
-                      <div className="vac-days-popup-field">
-                        <span className="vac-days-field-label">잔여</span>
-                        {isAdmin
-                          ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
-                              value={getVacRemaining(name)}
-                              onChange={e => vacSetRemaining(name, parseFloat(e.target.value) || 0)} />
-                          : <span className="vac-days-popup-input vac-days-readonly">{getVacRemaining(name)}</span>
-                        }
-                        <span className="vac-days-unit">일</span>
+                      <div className="vac-days-popup-fields">
+                        <div className="vac-days-popup-field">
+                          <span className="vac-days-field-label">총</span>
+                          {isAdmin
+                            ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
+                                value={getVacTotal(name)}
+                                onChange={e => vacSetTotal(name, parseFloat(e.target.value) || 0)} />
+                            : <span className="vac-days-popup-input vac-days-readonly">{getVacTotal(name)}</span>
+                          }
+                          <span className="vac-days-unit">일</span>
+                        </div>
+                        <div className="vac-days-popup-field">
+                          <span className="vac-days-field-label">잔여</span>
+                          {isAdmin
+                            ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
+                                value={getVacRemaining(name)}
+                                onChange={e => vacSetRemaining(name, parseFloat(e.target.value) || 0)} />
+                            : <span className="vac-days-popup-input vac-days-readonly">{getVacRemaining(name)}</span>
+                          }
+                          <span className="vac-days-unit">일</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               }
             </div>
           )}

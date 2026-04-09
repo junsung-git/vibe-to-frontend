@@ -275,12 +275,35 @@
   border-bottom: 1px solid var(--lav-border);
 }
 .vac-days-popup-row:last-child { border-bottom: none; }
+.vac-days-popup-nameblock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+  min-width: 60px;
+}
 .vac-days-popup-name {
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
-  flex-shrink: 0;
-  min-width: 40px;
+}
+.vac-days-popup-name.clickable { cursor: pointer; text-decoration: underline dotted; }
+.vac-days-popup-name.clickable:hover { color: var(--lav); }
+.vac-join-input {
+  font-size: 0.7rem;
+  border: 1px solid var(--lav-border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  color: var(--lav);
+  outline: none;
+  font-family: inherit;
+  background: var(--lav-muted);
+  width: 120px;
+}
+.vac-join-label {
+  font-size: 0.62rem;
+  color: var(--lav);
+  opacity: 0.7;
 }
 .vac-days-popup-fields {
   display: flex;
