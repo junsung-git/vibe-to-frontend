@@ -418,6 +418,13 @@ export default function App() {
     setEditingMember(null)
     if (!newName || newName === oldName || members.includes(newName)) return
     saveMembers(members.map(m => m === oldName ? newName : m))
+    // 연차 데이터 키도 함께 변경
+    setVacData(prev => {
+      if (!prev[oldName]) return prev
+      const next = { ...prev, [newName]: prev[oldName] }
+      delete next[oldName]
+      return next
+    })
   }
 
   // ── SEARCH ──
@@ -475,6 +482,12 @@ export default function App() {
     })
     return result
   }, [todosMap])
+
+  // 연차 캘린더용: 현재 멤버 + 삭제됐지만 데이터 있는 멤버
+  const vacMembers = useMemo(() => {
+    const extra = Object.keys(vacData).filter(n => !members.includes(n) && Object.keys(vacData[n]?.days || {}).length > 0)
+    return [...members, ...extra]
+  }, [members, vacData])
 
   // ── CALENDAR GRID ──
   const calDays = useMemo(() => {
@@ -695,7 +708,7 @@ export default function App() {
               🔐 관리자
             </button>
           )}
-          <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤 +</button>
+          <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤{isAdmin ? ' +' : ''}</button>
           <button className={`vac-toggle-btn${vacMode ? ' active' : ''}`} onClick={() => { setVacMode(v => !v); setVacModalDate(null) }}>연차</button>
           <button className="month-nav-btn" onClick={() => {
             if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
@@ -824,7 +837,7 @@ export default function App() {
                   <div key={day.key} className={`cal-cell faded${day.dow === 0 ? ' sun-cell' : day.dow === 6 ? ' sat-cell' : ''}`}>
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
-                      {members.map(name => {
+                      {vacMembers.map(name => {
                         const dayEntry = getVacDay(name, day.dk)
                         if (!dayEntry.value) return null
                         return (
@@ -849,7 +862,7 @@ export default function App() {
                   >
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
-                      {members.map(name => {
+                      {vacMembers.map(name => {
                         const dayEntry = getVacDay(name, day.dk)
                         if (!dayEntry.value) return null
                         return (
@@ -886,9 +899,9 @@ export default function App() {
               <button className="modal-close" onClick={() => setVacModalDate(null)}>×</button>
             </div>
             <div className="modal-body">
-              {members.length === 0
+              {vacMembers.length === 0
                 ? <div className="empty-msg">등록된 멤버가 없습니다</div>
-                : members.map(name => {
+                : vacMembers.map(name => {
                   const dayEntry = getVacDay(name, vacModalDate)
                   const remaining = getVacRemaining(name)
                   const hasEntry = (dayEntry.value || 0) > 0
@@ -1098,7 +1111,7 @@ export default function App() {
                 ? <div className="empty-msg">등록된 멤버가 없습니다</div>
                 : members.map(name => (
                   <div key={name} className="member-item">
-                    {editingMember === name ? (
+                    {isAdmin && editingMember === name ? (
                       <input
                         autoFocus
                         style={{ flex: 1, border: 'none', borderBottom: '1.5px solid var(--green)', outline: 'none', fontSize: '0.85rem', fontFamily: 'inherit', padding: '2px 0', background: 'transparent' }}
@@ -1108,13 +1121,14 @@ export default function App() {
                         onKeyDown={e => { if (e.key === 'Enter') finishMemberEdit(name); if (e.key === 'Escape') setEditingMember(null) }}
                       />
                     ) : (
-                      <span style={{ flex: 1, cursor: 'pointer' }} onClick={() => { setEditingMember(name); setEditMemberText(name) }}>👤 {name}</span>
+                      <span style={{ flex: 1, cursor: isAdmin ? 'pointer' : 'default' }} onClick={() => { if (isAdmin) { setEditingMember(name); setEditMemberText(name) } }}>👤 {name}</span>
                     )}
-                    <button className="del-member" onClick={() => saveMembers(members.filter(m => m !== name))}>×</button>
+                    {isAdmin && <button className="del-member" onClick={() => saveMembers(members.filter(m => m !== name))}>×</button>}
                   </div>
                 ))
               }
             </div>
+            {isAdmin && (
             <div className="member-footer">
               <input
                 type="text"
@@ -1127,6 +1141,7 @@ export default function App() {
               />
               <button onClick={addMember}>추가</button>
             </div>
+            )}
           </div>
         </div>
       )}
