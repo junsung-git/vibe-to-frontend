@@ -144,6 +144,53 @@
   flex-shrink: 0;
 }
 .vac-toggle-btn:hover { border-color: var(--lav); color: var(--lav); }
+.year-picker-wrap { position: relative; }
+.year-badge-btn {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.12s;
+  letter-spacing: 0.04em;
+}
+.year-badge-btn:hover { background: var(--beige); }
+.year-picker-popup {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 100;
+  min-width: 80px;
+}
+.year-picker-item {
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: center;
+  transition: background 0.1s;
+}
+.year-picker-item:hover { background: var(--beige); }
+.year-picker-item.active { background: var(--green); color: #fff; }
+
 .month-nav-btn {
   font-family: inherit;
   font-size: 1.1rem;

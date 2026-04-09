@@ -70,6 +70,7 @@ export default function App() {
   const [vacData, setVacData] = useState({})
   const [vacModalDate, setVacModalDate] = useState(null)
   const [vacDaysOpen, setVacDaysOpen] = useState(false)
+  const [yearPickerOpen, setYearPickerOpen] = useState(false)
 
   function getVacDay(name, dk) {
     return vacData[name]?.days?.[dk] || { value: 0 }
@@ -237,6 +238,14 @@ export default function App() {
     }, 500)
     return () => clearTimeout(timer)
   }, [vacData])
+
+  // 연도 팝업 외부 클릭 닫기
+  useEffect(() => {
+    if (!yearPickerOpen) return
+    const handler = (e) => { if (!e.target.closest('.year-picker-wrap')) setYearPickerOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [yearPickerOpen])
 
   // Ctrl+F
   useEffect(() => {
@@ -671,7 +680,16 @@ export default function App() {
           />
         </div>
         <div className="header-actions">
-          <span className="year-badge">{curYear}</span>
+          <div className="year-picker-wrap">
+            <button className="year-badge-btn" onClick={() => setYearPickerOpen(v => !v)}>{curYear}</button>
+            {yearPickerOpen && (
+              <div className="year-picker-popup">
+                {Array.from({ length: 11 }, (_, i) => curYear - 5 + i).map(y => (
+                  <button key={y} className={`year-picker-item${y === curYear ? ' active' : ''}`} onClick={() => { setCurYear(y); setCurMonth(0); setYearPickerOpen(false) }}>{y}</button>
+                ))}
+              </div>
+            )}
+          </div>
           {isAdmin && (
             <button className="admin-settings-btn" onClick={() => { setPwChangeGuest(''); setPwChangeAdmin(''); setPwChangeMsg(''); setPwChangeOpen(true) }}>
               🔐 관리자
