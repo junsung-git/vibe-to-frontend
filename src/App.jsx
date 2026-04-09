@@ -102,8 +102,8 @@ export default function App() {
       }
     })
   }
-  // +0.5: value가 1 미만인 첫 번째 칸에 0.5 추가 (0→0.5→1→다음칸)
-  function vacAddHalf(name, startDk) {
+  // halfType: 'am' = 이름/, 'pm' = /이름
+  function vacAddHalf(name, startDk, halfType) {
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
       let targetDk = startDk
@@ -112,12 +112,14 @@ export default function App() {
       }
       const cur = entry.days[targetDk]?.value || 0
       const newVal = Math.min(cur + 0.5, 1)
+      // 0.5+0.5=1이 되면 halfType 제거(종일), 아니면 halfType 저장
+      const newHalfType = newVal === 1 ? null : halfType
       return {
         ...prev,
         [name]: {
           ...entry,
           remaining: entry.remaining - 0.5,
-          days: { ...entry.days, [targetDk]: { value: newVal } }
+          days: { ...entry.days, [targetDk]: { value: newVal, halfType: newHalfType } }
         }
       }
     })
@@ -677,6 +679,12 @@ export default function App() {
           )}
           <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤 +</button>
           <button className={`vac-toggle-btn${vacMode ? ' active' : ''}`} onClick={() => { setVacMode(v => !v); setVacModalDate(null) }}>연차</button>
+          <button className="month-nav-btn" onClick={() => {
+            if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
+          }}>‹</button>
+          <button className="month-nav-btn" onClick={() => {
+            if (curMonth === 11) { setCurYear(y => y + 1); setCurMonth(0) } else setCurMonth(m => m + 1)
+          }}>›</button>
         </div>
         <div className="month-tabs" ref={monthTabsRef}>
           {MONTHS.map((m, i) => (
@@ -794,6 +802,27 @@ export default function App() {
               ))}
               {calDays.map(day => {
                 if (day.empty) return <div key={day.key} className="cal-cell empty" />
+                if (day.faded) return (
+                  <div key={day.key} className={`cal-cell faded${day.dow === 0 ? ' sun-cell' : day.dow === 6 ? ' sat-cell' : ''}`}>
+                    <span className="cell-num">{day.d}</span>
+                    <div className="cell-todos">
+                      {members.map(name => {
+                        const dayEntry = getVacDay(name, day.dk)
+                        if (!dayEntry.value) return null
+                        return (
+                          <div key={name} className="vac-cell-row">
+                            {dayEntry.value === 1
+                              ? <span className="vac-cell-name">{name}</span>
+                              : dayEntry.halfType === 'pm'
+                                ? <span className="vac-cell-half vac-cell-pm">/{name}</span>
+                                : <span className="vac-cell-half vac-cell-am">{name}/</span>
+                            }
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
                 return (
                   <div
                     key={day.dk}
@@ -809,7 +838,9 @@ export default function App() {
                           <div key={name} className="vac-cell-row">
                             {dayEntry.value === 1
                               ? <span className="vac-cell-name">{name}</span>
-                              : <span className="vac-cell-half">{name}/</span>
+                              : dayEntry.halfType === 'pm'
+                                ? <span className="vac-cell-half vac-cell-pm">/{name}</span>
+                                : <span className="vac-cell-half vac-cell-am">{name}/</span>
                             }
                           </div>
                         )
@@ -848,8 +879,9 @@ export default function App() {
                       <span className="vac-modal-name">{name}</span>
                       <span className="vac-modal-remain">총 {getVacTotal(name)}일 / 잔여 {remaining}일</span>
                       <div className="vac-modal-btns">
-                        <button className="vac-add-btn" onClick={() => vacAddFull(name, vacModalDate)}>+1</button>
-                        <button className={`vac-add-btn${dayEntry.value === 0.5 ? ' active' : ''}`} onClick={() => vacAddHalf(name, vacModalDate)}>+0.5</button>
+                        <button className="vac-add-btn" onClick={() => vacAddFull(name, vacModalDate)}>종일</button>
+                        <button className={`vac-add-btn vac-add-am${dayEntry.halfType === 'am' ? ' active' : ''}`} onClick={() => vacAddHalf(name, vacModalDate, 'am')}>오전</button>
+                        <button className={`vac-add-btn vac-add-pm${dayEntry.halfType === 'pm' ? ' active' : ''}`} onClick={() => vacAddHalf(name, vacModalDate, 'pm')}>오후</button>
                         {isAdmin && hasEntry && (
                           <button className="vac-remove-btn" onClick={() => vacClearDay(name, vacModalDate)}>×</button>
                         )}

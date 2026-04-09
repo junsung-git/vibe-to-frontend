@@ -8,6 +8,10 @@
   --text: #1a1a1a;
   --text-muted: #888;
   --border: #ddd6c8;
+  --lav: #7c6fcd;
+  --lav-light: #ede8f8;
+  --lav-muted: #f3f0fc;
+  --lav-border: #c9bff0;
 }
 
 html, body { height: 100%; margin: 0; padding: 0; }

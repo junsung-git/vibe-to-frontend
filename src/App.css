@@ -143,8 +143,31 @@
   transition: all 0.15s;
   flex-shrink: 0;
 }
-.vac-toggle-btn:hover { border-color: #c0711b; color: #c0711b; }
-.vac-toggle-btn.active { background: #c0711b; color: #fff; border-color: #c0711b; }
+.vac-toggle-btn:hover { border-color: var(--lav); color: var(--lav); }
+.month-nav-btn {
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1.4;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.month-nav-btn:hover { border-color: var(--green); color: var(--green); }
+.vac-toggle-btn.active { background: var(--lav); color: #fff; border-color: var(--lav); }
+
+.vac-view .day-header { background: var(--lav-light); color: var(--lav); }
+.vac-view .day-header.sun { color: #c0392b; }
+.vac-view .day-header.sat { color: var(--lav); }
+.vac-view .cal-cell.faded { background: var(--lav-light); }
+.vac-view .cal-cell.faded .cell-num { color: #b8aee0; }
+.vac-view .cal-cell.faded .vac-cell-name,
+.vac-view .cal-cell.faded .vac-cell-half { color: #b8aee0; }
 
 /* ── VACATION VIEW ── */
 .vac-view {
@@ -154,6 +177,7 @@
   overflow: hidden;
   min-height: 0;
   position: relative;
+  background: var(--lav-muted);
 }
 .vac-days-open-btn {
   position: absolute;
@@ -162,29 +186,29 @@
   z-index: 20;
   font-family: inherit;
   font-size: 0.7rem;
-  background: var(--beige);
-  border: 1px solid var(--border);
+  background: var(--lav-muted);
+  border: 1px solid var(--lav-border);
   border-radius: 4px;
   padding: 2px 8px;
   cursor: pointer;
-  color: var(--green);
+  color: var(--lav);
   transition: all 0.15s;
   line-height: 1.4;
 }
-.vac-days-open-btn:hover { border-color: var(--green); }
-.vac-days-open-btn.open { background: var(--green); color: #fff; border-color: var(--green); transform: scaleY(-1); }
+.vac-days-open-btn:hover { border-color: var(--lav); color: var(--lav); }
+.vac-days-open-btn.open { background: var(--lav); color: #fff; border-color: var(--lav); transform: scaleY(-1); }
 .vac-days-popup {
   position: absolute;
   top: 32px;
   right: 12px;
   z-index: 30;
   background: #fff;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--lav-border);
   border-radius: 8px;
   padding: 12px 14px;
   min-width: 240px;
   max-width: 300px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+  box-shadow: 0 4px 16px rgba(124,111,205,0.12);
 }
 .vac-days-popup-title {
   font-size: 0.65rem;
@@ -199,7 +223,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 0;
-  border-bottom: 1px solid var(--beige-dark);
+  border-bottom: 1px solid var(--lav-border);
 }
 .vac-days-popup-row:last-child { border-bottom: none; }
 .vac-days-popup-name {
@@ -230,15 +254,15 @@
   font-size: 0.82rem;
   font-weight: 700;
   text-align: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--lav-border);
   border-radius: 4px;
   padding: 2px 4px;
   outline: none;
-  color: var(--green);
-  background: var(--beige);
+  color: var(--lav);
+  background: var(--lav-muted);
   font-family: inherit;
 }
-.vac-days-popup-input:focus { border-color: var(--green); }
+.vac-days-popup-input:focus { border-color: var(--lav); }
 .vac-days-popup-empty { font-size: 0.78rem; color: var(--text-muted); }
 .vac-days-readonly {
   display: inline-flex;
@@ -265,15 +289,21 @@
   font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
-  background: var(--green-muted);
-  color: var(--green);
-  border: 1.5px solid var(--green);
+  background: var(--lav-muted);
+  color: var(--lav);
+  border: 1.5px solid var(--lav);
   border-radius: 6px;
   padding: 4px 10px;
   cursor: pointer;
   transition: all 0.12s;
 }
-.vac-add-btn:hover { background: var(--green); color: #fff; }
+.vac-add-btn:hover { background: var(--lav); color: #fff; }
+.vac-add-am { border-color: #4db6e4 !important; color: #1a7fa8 !important; }
+.vac-add-am:hover, .vac-add-am.active { background: #4db6e4 !important; color: #fff !important; }
+.vac-add-pm { border-color: #e07b2a !important; color: #c0611b !important; }
+.vac-add-pm:hover, .vac-add-pm.active { background: #e07b2a !important; color: #fff !important; }
+.vac-cell-am { color: #1a7fa8; }
+.vac-cell-pm { color: #c0611b; }
 .vac-remove-btn {
   font-family: inherit;
   font-size: 0.72rem;
@@ -289,7 +319,7 @@
 .vac-remove-btn:hover { background: #c0392b; color: #fff; }
 
 .vac-modal-btns { display: flex; gap: 4px; align-items: center; }
-.vac-add-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+.vac-add-btn.active { background: var(--lav); color: #fff; border-color: var(--lav); }
 
 .vac-cell-row {
   display: flex;
@@ -302,13 +332,13 @@
 .vac-cell-name {
   font-size: 0.58rem;
   font-weight: 700;
-  color: var(--green);
+  color: var(--lav);
   line-height: 1.2;
 }
 .vac-cell-half {
   font-size: 0.58rem;
   font-weight: 700;
-  color: var(--green);
+  color: var(--lav);
   line-height: 1.2;
 }
 
