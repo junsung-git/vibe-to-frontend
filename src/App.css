@@ -255,6 +255,8 @@
   padding: 12px 14px;
   min-width: 240px;
   max-width: 300px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
   box-shadow: 0 4px 16px rgba(124,111,205,0.12);
 }
 .vac-days-popup-title {
