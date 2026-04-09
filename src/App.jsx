@@ -180,7 +180,11 @@ export default function App() {
       if (memData.value !== null) setMembers(memData.value)
       if (pwData.value !== null) setPasswords(pwData.value)
       if (vacD.value !== null) setVacData(vacD.value)
-    } catch (e) { console.error('설정 로드 실패:', e) }
+      vacDataLoaded.current = true  // DB 로드 완료 후에만 저장 허용
+    } catch (e) {
+      console.error('설정 로드 실패:', e)
+      vacDataLoaded.current = true  // 로드 실패해도 이후 변경은 저장 허용
+    }
   }, [])
 
   async function saveSetting(key, value) {
@@ -230,9 +234,10 @@ export default function App() {
   }, [isLoggedIn, loadAllTodos, loadSettings])
 
   // vacData 변경 시 DB 저장 (디바운스 500ms)
-  const vacDataRef = useRef(false)
+  // vacDataLoaded가 true일 때만 저장 (DB 로드 전에 빈값으로 덮어쓰기 방지)
+  const vacDataLoaded = useRef(false)
   useEffect(() => {
-    if (!vacDataRef.current) { vacDataRef.current = true; return } // 최초 마운트 스킵
+    if (!vacDataLoaded.current) return
     const timer = setTimeout(() => {
       saveSetting('vacationData', vacData)
     }, 500)
