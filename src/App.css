@@ -305,6 +305,88 @@
   color: var(--lav);
   opacity: 0.7;
 }
+.vac-join-picker {
+  background: #fff;
+  border: 1px solid var(--lav-border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 2px;
+  min-width: 160px;
+}
+.vac-join-picker-year-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.vac-join-picker-arrow {
+  background: none;
+  border: none;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--lav);
+  padding: 0 4px;
+  font-family: inherit;
+}
+.vac-join-picker-year-val {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.vac-join-picker-months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+.vac-join-picker-month-btn {
+  background: var(--lav-muted);
+  border: 1px solid var(--lav-border);
+  border-radius: 4px;
+  padding: 4px 2px;
+  font-size: 0.7rem;
+  color: var(--lav);
+  cursor: pointer;
+  font-family: inherit;
+}
+.vac-join-picker-month-btn:hover { background: var(--lav-light); }
+.vac-join-picker-back-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.vac-join-picker-back-btn {
+  background: none;
+  border: none;
+  font-size: 0.68rem;
+  color: var(--lav);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+.vac-join-picker-month-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.vac-join-picker-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.vac-join-picker-day-btn {
+  background: var(--lav-muted);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 3px 0;
+  font-size: 0.62rem;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+}
+.vac-join-picker-day-btn:hover { background: var(--lav-light); border-color: var(--lav-border); }
 .vac-days-popup-fields {
   display: flex;
   gap: 6px;

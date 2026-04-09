@@ -71,55 +71,96 @@ export default function App() {
   const [vacDaysOpen, setVacDaysOpen] = useState(false)
   const [yearPickerOpen, setYearPickerOpen] = useState(false)
   const [joinDateEditName, setJoinDateEditName] = useState(null)
+  const [joinDatePickerStep, setJoinDatePickerStep] = useState('month')
+  const [joinDatePickerYear, setJoinDatePickerYear] = useState(null)
+  const [joinDatePickerMonth, setJoinDatePickerMonth] = useState(null)
 
-  // 연도별 법정 평일 공휴일 목록 (YYYY-MM-DD)
+  // 연도별 법정 평일 공휴일 목록 (YYYY-MM-DD, 토일 제외)
   const HOLIDAYS_BY_YEAR = {
-    2024: ['2024-01-01','2024-02-09','2024-02-10','2024-02-12','2024-03-01','2024-04-10',
-           '2024-05-06','2024-05-15','2024-06-06','2024-08-15','2024-09-16','2024-09-17',
-           '2024-09-18','2024-10-03','2024-10-09','2024-12-25'],
-    2025: ['2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-01-30','2025-03-03',
-           '2025-05-05','2025-05-06','2025-06-03','2025-06-06','2025-08-15','2025-10-03',
-           '2025-10-06','2025-10-07','2025-10-08','2025-10-09','2025-12-25'],
-    2026: ['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-05',
-           '2026-05-25','2026-06-03','2026-07-17','2026-08-17','2026-09-24','2026-09-25',
+    2024: ['2024-01-01','2024-02-09','2024-02-10','2024-02-12',
+           '2024-04-10','2024-05-06','2024-05-15','2024-06-06',
+           '2024-08-15','2024-09-16','2024-09-17','2024-09-18',
+           '2024-10-03','2024-10-09','2024-12-25'],
+    2025: ['2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-01-30',
+           '2025-03-03','2025-05-05','2025-05-06','2025-06-03','2025-06-06',
+           '2025-08-15','2025-10-03','2025-10-06','2025-10-07','2025-10-08',
+           '2025-10-09','2025-12-25'],
+    2026: ['2026-01-01','2026-02-16','2026-02-17','2026-02-18',
+           '2026-03-02','2026-05-05','2026-05-25','2026-06-03',
+           '2026-07-17','2026-08-17','2026-09-24','2026-09-25','2026-09-28',
            '2026-10-05','2026-10-09','2026-12-25'],
   }
 
-  // 해당 연도에서 fromDate 이후 평일 공휴일 수
   function getWeekdayHolidaysFrom(year, fromDate) {
     const list = HOLIDAYS_BY_YEAR[year] || []
-    return list.filter(d => {
-      const dt = new Date(d + 'T00:00:00')
-      const dow = dt.getDay()
-      return dow !== 0 && dow !== 6 && dt >= fromDate
-    }).length
+    return list.filter(d => new Date(d + 'T00:00:00') >= fromDate).length
   }
 
-  // 입사일 기준 법정 연차 계산 (근로기준법 제60조) + 공휴일
+  function countWeekends(fromDate, toDate) {
+    let count = 0
+    const d = new Date(fromDate)
+    d.setHours(0,0,0,0)
+    const end = new Date(toDate)
+    end.setHours(0,0,0,0)
+    while (d <= end) {
+      const dow = d.getDay()
+      if (dow === 0 || dow === 6) count++
+      d.setDate(d.getDate() + 1)
+    }
+    return count
+  }
+
+  // 입사일 기준 총 휴일 계산 (주말 + 법정공휴일 + 연차/월차)
+  // - 주말/공휴일: 연도 전체 (입사 첫해는 입사일 이후)
+  // - 월차: 당해 연도 내 완성된 달만 (현재 연도면 오늘 기준)
   function calcAnnualLeave(joinDateStr, targetYear) {
     if (!joinDateStr) return 0
     const join = new Date(joinDateStr + 'T00:00:00')
+    const yearStart = new Date(targetYear, 0, 1)
     const yearEnd = new Date(targetYear, 11, 31)
     if (join > yearEnd) return 0
 
-    const jan1 = new Date(targetYear, 0, 1)
-    // 해당 연도 1월 1일 기준 만 근속 개월
-    const totalMonths = (jan1.getFullYear() - join.getFullYear()) * 12 + (jan1.getMonth() - join.getMonth())
-    const totalYears = Math.floor(totalMonths / 12)
+    const todayD = new Date()
+    todayD.setHours(0,0,0,0)
 
-    let annualLeave
-    if (totalMonths < 12) {
-      // 입사 첫해: 입사일 다음 달부터 연도 말까지 월차 발생 (최대 11)
-      const fromMonth = new Date(join.getFullYear(), join.getMonth() + 1, 1)
-      const monthsLeft = (yearEnd.getFullYear() - fromMonth.getFullYear()) * 12 + (yearEnd.getMonth() - fromMonth.getMonth()) + 1
-      annualLeave = Math.min(Math.max(monthsLeft, 0), 11)
-      // 공휴일도 입사일 이후분만
-      return annualLeave + getWeekdayHolidaysFrom(targetYear, join)
+    // 해당 연도 1월 1일 기준 근속 개월
+    const monthsAtJan1 = Math.max(0,
+      (yearStart.getFullYear() - join.getFullYear()) * 12 + (yearStart.getMonth() - join.getMonth())
+    )
+    // 오늘 또는 연도말 기준 근속 개월
+    const endRef = todayD < yearEnd ? todayD : yearEnd
+    const monthsAtEnd = Math.max(0,
+      (endRef.getFullYear() - join.getFullYear()) * 12 + (endRef.getMonth() - join.getMonth())
+    )
+
+    let leaveCount
+    if (monthsAtJan1 >= 12) {
+      // 1년 이상 근속: 법정 연차
+      const yearsAtJan1 = Math.floor(monthsAtJan1 / 12)
+      leaveCount = Math.min(15 + Math.floor((yearsAtJan1 - 1) / 2), 25)
+    } else if (monthsAtEnd >= 12) {
+      // 올해 중 1주년 도래: 15일
+      leaveCount = 15
     } else {
-      // 1년 이상: 연차 15일~ + 해당 연도 공휴일 전체
-      annualLeave = Math.min(15 + Math.floor((totalYears - 1) / 2), 25)
-      return annualLeave + getWeekdayHolidaysFrom(targetYear, jan1)
+      // 1년 미만: 당해 연도 내 완성된 달 수
+      const firstEarnInYear = new Date(join.getFullYear(), join.getMonth() + 1, 1)
+      const countStart = firstEarnInYear > yearStart ? firstEarnInYear : yearStart
+      if (countStart > endRef) {
+        leaveCount = 0
+      } else {
+        const endMonth = targetYear < todayD.getFullYear() ? 12 : todayD.getMonth()
+        leaveCount = Math.max(0, endMonth - countStart.getMonth())
+      }
     }
+
+    // 주말: 연도 전체 (입사일 이후)
+    const rangeFrom = join > yearStart ? join : yearStart
+    const weekends = countWeekends(rangeFrom, yearEnd)
+
+    // 공휴일: 연도 전체 (입사일 이후)
+    const holidays = getWeekdayHolidaysFrom(targetYear, rangeFrom)
+
+    return leaveCount + weekends + holidays
   }
 
   function vacSetJoinDate(name, joinDate) {
@@ -867,16 +908,60 @@ export default function App() {
                       <div className="vac-days-popup-nameblock">
                         <span
                           className={`vac-days-popup-name${isAdmin ? ' clickable' : ''}`}
-                          onClick={() => isAdmin && setJoinDateEditName(joinDateEditName === name ? null : name)}
+                          onClick={() => {
+                            if (!isAdmin) return
+                            if (joinDateEditName === name) {
+                              setJoinDateEditName(null)
+                            } else {
+                              setJoinDateEditName(name)
+                              setJoinDatePickerStep('month')
+                              const existingYear = vacData[name]?.joinDate ? parseInt(vacData[name].joinDate.split('-')[0]) : new Date().getFullYear()
+                              setJoinDatePickerYear(existingYear)
+                              setJoinDatePickerMonth(null)
+                            }
+                          }}
                           title={isAdmin ? '클릭하여 입사일 설정' : ''}
                         >{name}</span>
                         {isAdmin && joinDateEditName === name && (
-                          <input
-                            className="vac-join-input"
-                            type="date"
-                            value={joinDate}
-                            onChange={e => { vacSetJoinDate(name, e.target.value); setJoinDateEditName(null) }}
-                          />
+                          <div className="vac-join-picker">
+                            {joinDatePickerStep === 'month' ? (
+                              <>
+                                <div className="vac-join-picker-year-row">
+                                  <button className="vac-join-picker-arrow" onClick={e => { e.stopPropagation(); setJoinDatePickerYear(y => y - 1) }}>‹</button>
+                                  <span className="vac-join-picker-year-val">{joinDatePickerYear}</span>
+                                  <button className="vac-join-picker-arrow" onClick={e => { e.stopPropagation(); setJoinDatePickerYear(y => y + 1) }}>›</button>
+                                </div>
+                                <div className="vac-join-picker-months">
+                                  {['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'].map((m, i) => (
+                                    <button key={i} className="vac-join-picker-month-btn"
+                                      onClick={e => { e.stopPropagation(); setJoinDatePickerMonth(i); setJoinDatePickerStep('day') }}>
+                                      {m}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="vac-join-picker-back-row">
+                                  <button className="vac-join-picker-back-btn" onClick={e => { e.stopPropagation(); setJoinDatePickerStep('month') }}>‹ 월 선택</button>
+                                  <span className="vac-join-picker-month-label">{joinDatePickerYear}년 {joinDatePickerMonth + 1}월</span>
+                                </div>
+                                <div className="vac-join-picker-days">
+                                  {Array.from({ length: new Date(joinDatePickerYear, joinDatePickerMonth + 1, 0).getDate() }, (_, d) => (
+                                    <button key={d} className="vac-join-picker-day-btn"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        const dk = dateKey(joinDatePickerYear, joinDatePickerMonth + 1, d + 1)
+                                        vacSetJoinDate(name, dk)
+                                        setJoinDateEditName(null)
+                                      }}>
+                                      {d + 1}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
                         {joinDate && <span className="vac-join-label">{joinDate}</span>}
                       </div>
