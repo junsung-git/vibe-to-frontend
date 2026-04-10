@@ -547,8 +547,17 @@ export default function App() {
     e.stopPropagation()
     if (equipPickerTodoId === todo.id) { setEquipPickerTodoId(null); return }
     const rect = e.currentTarget.getBoundingClientRect()
-    const pickerH = Math.min(equipment.length * 36 + 16, 240)
-    setEquipPickerPos({ left: rect.left, top: rect.top - pickerH - 6 })
+    const pickerH = Math.min(equipment.filter(x => x).length * 36 + 16, 240)
+    const pickerW = 150
+    const spaceAbove = rect.top
+    const spaceBelow = window.innerHeight - rect.bottom
+    const top = spaceAbove >= pickerH + 6
+      ? rect.top - pickerH - 6
+      : spaceBelow >= pickerH + 6
+        ? rect.bottom + 6
+        : Math.max(8, window.innerHeight - pickerH - 8)
+    const left = rect.right - pickerW < 0 ? rect.left : rect.right - pickerW
+    setEquipPickerPos({ left, top })
     setEquipPickerTodoId(todo.id)
   }
 
