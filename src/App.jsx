@@ -1009,20 +1009,17 @@ export default function App() {
                   <div key={day.key} className={`cal-cell faded${day.dow === 0 ? ' sun-cell' : day.dow === 6 ? ' sat-cell' : ''}`}>
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
-                      {vacMembers.map(name => {
-                        const dayEntry = getVacDay(name, day.dk)
-                        if (!dayEntry.value) return null
-                        return (
-                          <div key={name} className="vac-cell-row">
-                            {dayEntry.value === 1
-                              ? <span className="vac-cell-name">{name}</span>
-                              : dayEntry.halfType === 'pm'
-                                ? <span className="vac-cell-half vac-cell-pm">/{name}</span>
-                                : <span className="vac-cell-half vac-cell-am">{name}/</span>
-                            }
-                          </div>
-                        )
-                      })}
+                      <div className="vac-cell-grid">
+                        {vacMembers.map(name => {
+                          const dayEntry = getVacDay(name, day.dk)
+                          if (!dayEntry.value) return null
+                          return dayEntry.value === 1
+                            ? <span key={name} className="vac-cell-name">{name}</span>
+                            : dayEntry.halfType === 'pm'
+                              ? <span key={name} className="vac-cell-half vac-cell-pm">/{name}</span>
+                              : <span key={name} className="vac-cell-half vac-cell-am">{name}/</span>
+                        })}
+                      </div>
                     </div>
                   </div>
                 )
@@ -1034,20 +1031,17 @@ export default function App() {
                   >
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
-                      {vacMembers.map(name => {
-                        const dayEntry = getVacDay(name, day.dk)
-                        if (!dayEntry.value) return null
-                        return (
-                          <div key={name} className="vac-cell-row">
-                            {dayEntry.value === 1
-                              ? <span className="vac-cell-name">{name}</span>
-                              : dayEntry.halfType === 'pm'
-                                ? <span className="vac-cell-half vac-cell-pm">/{name}</span>
-                                : <span className="vac-cell-half vac-cell-am">{name}/</span>
-                            }
-                          </div>
-                        )
-                      })}
+                      <div className="vac-cell-grid">
+                        {vacMembers.map(name => {
+                          const dayEntry = getVacDay(name, day.dk)
+                          if (!dayEntry.value) return null
+                          return dayEntry.value === 1
+                            ? <span key={name} className="vac-cell-name">{name}</span>
+                            : dayEntry.halfType === 'pm'
+                              ? <span key={name} className="vac-cell-half vac-cell-pm">/{name}</span>
+                              : <span key={name} className="vac-cell-half vac-cell-am">{name}/</span>
+                        })}
+                      </div>
                     </div>
                   </div>
                 )
