@@ -56,7 +56,6 @@ export default function App() {
   const [addingEquipIdx, setAddingEquipIdx] = useState(null)
   const [addingEquipText, setAddingEquipText] = useState('')
   const [equipPickerTodoId, setEquipPickerTodoId] = useState(null)
-  const [equipPickerPos, setEquipPickerPos] = useState({ top: 0, left: 0 })
 
   // ── DAY MODAL ──
   const [selectedDate, setSelectedDate] = useState(null)
@@ -377,16 +376,6 @@ export default function App() {
     return () => document.removeEventListener('click', handler)
   }, [openPickerId])
 
-  useEffect(() => {
-    if (!equipPickerTodoId) return
-    const handler = (e) => {
-      if (!e.target.closest('.equip-picker') && !e.target.closest('.icon-btn')) {
-        setEquipPickerTodoId(null)
-      }
-    }
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [equipPickerTodoId])
 
   // Scroll active tab into view
   useEffect(() => {
@@ -546,18 +535,6 @@ export default function App() {
   function handleEquipBtn(e, todo) {
     e.stopPropagation()
     if (equipPickerTodoId === todo.id) { setEquipPickerTodoId(null); return }
-    const rect = e.currentTarget.getBoundingClientRect()
-    const pickerH = Math.min(equipment.filter(x => x).length * 36 + 16, 240)
-    const pickerW = 150
-    const spaceAbove = rect.top
-    const spaceBelow = window.innerHeight - rect.bottom
-    const top = spaceAbove >= pickerH + 6
-      ? rect.top - pickerH - 6
-      : spaceBelow >= pickerH + 6
-        ? rect.bottom + 6
-        : Math.max(8, window.innerHeight - pickerH - 8)
-    const left = rect.right - pickerW < 0 ? rect.left : rect.right - pickerW
-    setEquipPickerPos({ left, top })
     setEquipPickerTodoId(todo.id)
   }
 
@@ -1266,29 +1243,36 @@ export default function App() {
         </div>
       )}
 
-      {/* EQUIP PICKER */}
+      {/* EQUIP SELECT MODAL */}
       {equipPickerTodoId && (() => {
         const equipTodo = modalTodos.find(t => t.id === equipPickerTodoId)
         if (!equipTodo) return null
         return (
-          <div className="equip-picker" style={{ top: equipPickerPos.top, left: equipPickerPos.left }}>
-            {equipment.filter(e => e).length === 0
-              ? <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '6px' }}>등록된 장비 없음</div>
-              : equipment.filter(e => e).map(name => {
-                const checked = equipTodo.equipment?.includes(name)
-                return (
-                  <label key={name} className="equip-picker-item">
-                    <input type="checkbox" checked={!!checked}
-                      onChange={() => {
+          <div className="member-overlay-bg" onClick={() => setEquipPickerTodoId(null)}>
+            <div className="member-modal equip-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header" style={{ background: 'var(--beige)' }}>
+                <span className="modal-date-label">💻 장비 선택</span>
+                <button className="modal-close" onClick={() => setEquipPickerTodoId(null)}>×</button>
+              </div>
+              <div className="equip-grid">
+                {Array.from({ length: 50 }, (_, i) => {
+                  const name = equipment[i]
+                  if (!name) return <div key={i} className="equip-cell" />
+                  const checked = equipTodo.equipment?.includes(name)
+                  return (
+                    <div key={i} className={`equip-cell filled${checked ? ' selected' : ''}`}
+                      onClick={() => {
                         const cur = equipTodo.equipment || []
                         const next = checked ? cur.filter(e => e !== name) : [...cur, name]
                         setTodoEquipment(equipTodo.id, next)
-                      }} />
-                    <span>{name}</span>
-                  </label>
-                )
-              })
-            }
+                      }}
+                    >
+                      <span className="equip-cell-name">{name}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         )
       })()}
