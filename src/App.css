@@ -936,10 +936,10 @@
 .member-footer button:disabled { background: var(--border); cursor: default; }
 
 /* ── EQUIPMENT ── */
-.equip-modal { max-width: 460px !important; }
+.equip-modal { max-width: 680px !important; }
 .equip-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(10, 1fr);
   gap: 6px;
   padding: 14px 18px;
   flex: 1;

@@ -1397,7 +1397,7 @@ export default function App() {
               <button className="modal-close" onClick={() => setEquipmentModalOpen(false)}>×</button>
             </div>
             <div className="equip-grid">
-              {Array.from({ length: 25 }, (_, i) => {
+              {Array.from({ length: 50 }, (_, i) => {
                 const name = equipment[i]
                 return (
                   <div key={i} className={`equip-cell${name ? ' filled' : ''}`}>
@@ -1434,9 +1434,9 @@ export default function App() {
                   value={equipInput}
                   onChange={e => setEquipInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addEquipItem()}
-                  disabled={equipment.length >= 25}
+                  disabled={equipment.length >= 50}
                 />
-                <button onClick={addEquipItem} disabled={equipment.length >= 25}>추가</button>
+                <button onClick={addEquipItem} disabled={equipment.length >= 50}>추가</button>
               </div>
             )}
           </div>
