@@ -110,9 +110,15 @@ export default function App() {
     return count
   }
 
+  // 입사일 기준 완성된 근속 개월 수 (날짜까지 정확하게)
+  // 예: 10월20일 입사 → 11월20일이 지나야 1개월
+  function completedMonths(fromDate, toDate) {
+    let m = (toDate.getFullYear() - fromDate.getFullYear()) * 12 + (toDate.getMonth() - fromDate.getMonth())
+    if (toDate.getDate() < fromDate.getDate()) m--
+    return Math.max(0, m)
+  }
+
   // 입사일 기준 총 휴일 계산 (주말 + 법정공휴일 + 연차/월차)
-  // - 주말/공휴일: 연도 전체 (입사 첫해는 입사일 이후)
-  // - 월차: 당해 연도 내 완성된 달만 (현재 연도면 오늘 기준)
   function calcAnnualLeave(joinDateStr, targetYear) {
     if (!joinDateStr) return 0
     const join = new Date(joinDateStr + 'T00:00:00')
@@ -122,16 +128,11 @@ export default function App() {
 
     const todayD = new Date()
     todayD.setHours(0,0,0,0)
-
-    // 해당 연도 1월 1일 기준 근속 개월
-    const monthsAtJan1 = Math.max(0,
-      (yearStart.getFullYear() - join.getFullYear()) * 12 + (yearStart.getMonth() - join.getMonth())
-    )
-    // 오늘 또는 연도말 기준 근속 개월
     const endRef = todayD < yearEnd ? todayD : yearEnd
-    const monthsAtEnd = Math.max(0,
-      (endRef.getFullYear() - join.getFullYear()) * 12 + (endRef.getMonth() - join.getMonth())
-    )
+
+    // 날짜 정확한 근속 개월 계산
+    const monthsAtJan1 = completedMonths(join, yearStart)
+    const monthsAtEnd = completedMonths(join, endRef)
 
     let leaveCount
     if (monthsAtJan1 >= 12) {
@@ -142,15 +143,10 @@ export default function App() {
       // 올해 중 1주년 도래: 15일
       leaveCount = 15
     } else {
-      // 1년 미만: 당해 연도 내 완성된 달 수
-      const firstEarnInYear = new Date(join.getFullYear(), join.getMonth() + 1, 1)
-      const countStart = firstEarnInYear > yearStart ? firstEarnInYear : yearStart
-      if (countStart > endRef) {
-        leaveCount = 0
-      } else {
-        const endMonth = targetYear < todayD.getFullYear() ? 12 : todayD.getMonth()
-        leaveCount = Math.max(0, endMonth - countStart.getMonth())
-      }
+      // 1년 미만: 당해 연도 내 발생한 월차 (입사일 기준 날짜까지 정확하게)
+      const prevYearEnd = new Date(targetYear, 0, 0)  // 전년도 12월31일
+      const prevYearMonths = completedMonths(join, prevYearEnd)
+      leaveCount = Math.max(0, monthsAtEnd - prevYearMonths)
     }
 
     // 주말: 연도 전체 (입사일 이후)
