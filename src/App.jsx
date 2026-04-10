@@ -117,14 +117,30 @@ export default function App() {
   }
 
   // 입사일 기준 완성된 근속 개월 수 (날짜까지 정확하게)
-  // 예: 10월20일 입사 → 11월20일이 지나야 1개월
   function completedMonths(fromDate, toDate) {
     let m = (toDate.getFullYear() - fromDate.getFullYear()) * 12 + (toDate.getMonth() - fromDate.getMonth())
     if (toDate.getDate() < fromDate.getDate()) m--
     return Math.max(0, m)
   }
 
+  // 입사일~toDate까지 누적 발생 연차/월차 합계
+  // - 입사 후 월 1일씩 최대 11일 (월차)
+  // - 1주년마다 연차 발생: 1년=15일, 2년=15일, 3년=16일... 최대25일
+  function calcTotalLeaveEarned(join, toDate) {
+    if (toDate < join) return 0
+    const months = completedMonths(join, toDate)
+    const monthlyLeave = Math.min(months, 11)
+    const completedYears = Math.floor(months / 12)
+    let annualLeave = 0
+    for (let y = 1; y <= completedYears; y++) {
+      annualLeave += Math.min(15 + Math.floor((y - 1) / 2), 25)
+    }
+    return monthlyLeave + annualLeave
+  }
+
   // 입사일 기준 총 휴일 계산 (주말 + 법정공휴일 + 연차/월차)
+  // - 2025년까지 발생 연차는 소진 가정
+  // - 2026년부터 누적 (오늘까지 발생량 - 2025말 발생량)
   function calcAnnualLeave(joinDateStr, targetYear) {
     if (!joinDateStr) return 0
     const join = new Date(joinDateStr + 'T00:00:00')
@@ -135,33 +151,20 @@ export default function App() {
     const todayD = new Date()
     todayD.setHours(0,0,0,0)
     const endRef = todayD < yearEnd ? todayD : yearEnd
+    const cutoff = new Date('2025-12-31T00:00:00')
 
-    // 날짜 정확한 근속 개월 계산
-    const monthsAtJan1 = completedMonths(join, yearStart)
-    const monthsAtEnd = completedMonths(join, endRef)
+    // 연차/월차: 2026년부터 누적
+    const earnedToday = calcTotalLeaveEarned(join, endRef)
+    const earnedByCutoff = calcTotalLeaveEarned(join, cutoff)
+    const leaveCount = Math.max(0, earnedToday - earnedByCutoff)
 
-    let leaveCount
-    if (monthsAtJan1 >= 12) {
-      // 1년 이상 근속: 법정 연차
-      const yearsAtJan1 = Math.floor(monthsAtJan1 / 12)
-      leaveCount = Math.min(15 + Math.floor((yearsAtJan1 - 1) / 2), 25)
-    } else if (monthsAtEnd >= 12) {
-      // 올해 중 1주년 도래: 연초 기준 근속 개월 비례 지급
-      // 예: 1월 전 1개월 근속 → round(15 × 1/12) = 1일
-      leaveCount = Math.round(15 * monthsAtJan1 / 12)
-    } else {
-      // 1년 미만: 당해 연도 내 발생한 월차 (입사일 기준 날짜까지 정확하게)
-      const prevYearEnd = new Date(targetYear, 0, 0)  // 전년도 12월31일
-      const prevYearMonths = completedMonths(join, prevYearEnd)
-      leaveCount = Math.max(0, monthsAtEnd - prevYearMonths)
-    }
+    // 주말: 해당 연도 (입사일 이후, 2026년 이후)
+    const weekendFrom = new Date(Math.max(join.getTime(), yearStart.getTime(), cutoff.getTime() + 86400000))
+    const weekends = countWeekends(weekendFrom, yearEnd)
 
-    // 주말: 연도 전체 (입사일 이후)
-    const rangeFrom = join > yearStart ? join : yearStart
-    const weekends = countWeekends(rangeFrom, yearEnd)
-
-    // 공휴일: 연도 전체 (입사일 이후)
-    const holidays = getWeekdayHolidaysFrom(targetYear, rangeFrom)
+    // 공휴일: 해당 연도 (입사일 이후, 2026년 이후)
+    const holidayFrom = weekendFrom
+    const holidays = getWeekdayHolidaysFrom(targetYear, holidayFrom)
 
     return leaveCount + weekends + holidays
   }
