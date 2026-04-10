@@ -49,7 +49,13 @@ export default function App() {
   const [curMonth, setCurMonth] = useState(today.getMonth())
   const [todosMap, setTodosMap] = useState({})
   const [members, setMembers] = useState([])
-  const [memo, setMemo] = useState('')
+  const [equipment, setEquipment] = useState([])
+  const [equipmentModalOpen, setEquipmentModalOpen] = useState(false)
+  const [equipInput, setEquipInput] = useState('')
+  const [editingEquipItem, setEditingEquipItem] = useState(null)
+  const [editEquipText, setEditEquipText] = useState('')
+  const [equipPickerTodoId, setEquipPickerTodoId] = useState(null)
+  const [equipPickerPos, setEquipPickerPos] = useState({ top: 0, left: 0 })
 
   // ── DAY MODAL ──
   const [selectedDate, setSelectedDate] = useState(null)
@@ -262,20 +268,20 @@ export default function App() {
   // ── API ──
   const loadSettings = useCallback(async () => {
     try {
-      const [mRes, memRes, pwRes, vacRes] = await Promise.all([
-        fetch(`${SETTINGS_API}/memo`),
+      const [memRes, pwRes, vacRes, eqRes] = await Promise.all([
         fetch(`${SETTINGS_API}/members`),
         fetch(`${SETTINGS_API}/passwords`),
         fetch(`${SETTINGS_API}/vacationData`),
+        fetch(`${SETTINGS_API}/equipment`),
       ])
-      const mData = await mRes.json()
       const memData = await memRes.json()
       const pwData = await pwRes.json()
       const vacD = await vacRes.json()
-      if (mData.value !== null) setMemo(mData.value)
+      const eqData = await eqRes.json()
       if (memData.value !== null) setMembers(memData.value)
       if (pwData.value !== null) setPasswords(pwData.value)
       if (vacD.value !== null) setVacData(vacD.value)
+      if (eqData.value !== null) setEquipment(eqData.value)
       vacDataLoaded.current = true  // DB 로드 완료 후에만 저장 허용
     } catch (e) {
       console.error('설정 로드 실패:', e)
@@ -306,6 +312,7 @@ export default function App() {
           done: t.done,
           assignee: t.assignee || '',
           color: t.color || TODO_COLORS[0].color,
+          equipment: t.equipment || [],
         })
       })
       setTodosMap(map)
@@ -368,6 +375,17 @@ export default function App() {
     document.addEventListener('click', handler)
     return () => document.removeEventListener('click', handler)
   }, [openPickerId])
+
+  useEffect(() => {
+    if (!equipPickerTodoId) return
+    const handler = (e) => {
+      if (!e.target.closest('.equip-picker') && !e.target.closest('.icon-btn')) {
+        setEquipPickerTodoId(null)
+      }
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [equipPickerTodoId])
 
   // Scroll active tab into view
   useEffect(() => {
@@ -501,6 +519,42 @@ export default function App() {
       setOpenPickerId(null)
       await loadAllTodos()
     } catch (e) { console.error('담당자 설정 실패:', e) }
+  }
+
+  // ── EQUIPMENT ──
+  function saveEquipment(list) {
+    setEquipment(list)
+    saveSetting('equipment', list)
+  }
+  function addEquipItem() {
+    const name = equipInput.trim()
+    if (!name || equipment.includes(name)) return
+    saveEquipment([...equipment, name])
+    setEquipInput('')
+  }
+  function finishEquipEdit(oldName) {
+    const newName = editEquipText.trim()
+    setEditingEquipItem(null)
+    if (!newName || newName === oldName) return
+    saveEquipment(equipment.map(e => e === oldName ? newName : e))
+  }
+  async function setTodoEquipment(todoId, equipList) {
+    try {
+      await fetch(`${API}/${todoId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ equipment: equipList }),
+      })
+      await loadAllTodos()
+    } catch (e) { console.error('장비 설정 실패:', e) }
+  }
+  function handleEquipBtn(e, todo) {
+    e.stopPropagation()
+    if (equipPickerTodoId === todo.id) { setEquipPickerTodoId(null); return }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const pickerH = Math.min(equipment.length * 36 + 16, 240)
+    setEquipPickerPos({ left: rect.left, top: rect.top - pickerH - 6 })
+    setEquipPickerTodoId(todo.id)
   }
 
   // ── MEMBERS ──
@@ -706,6 +760,7 @@ export default function App() {
     setSelectedDate(null)
     setEditingId(null)
     setOpenPickerId(null)
+    setEquipPickerTodoId(null)
   }
 
   function handleAssigneeBtn(e, todo) {
@@ -783,15 +838,6 @@ export default function App() {
         <div className="header-left">
           <div className="logo">ALTTAB <span>SCHEDULE</span></div>
           <div className="current-month-label">{curMonth + 1}월</div>
-          <input
-            className="header-memo"
-            type="text"
-            placeholder="메모..."
-            maxLength={200}
-            autoComplete="off"
-            value={memo}
-            onChange={e => { setMemo(e.target.value); saveSetting('memo', e.target.value) }}
-          />
         </div>
         <div className="header-actions">
           <div className="year-picker-wrap">
@@ -810,6 +856,7 @@ export default function App() {
             </button>
           )}
           <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤{isAdmin ? ' +' : ''}</button>
+          <button className="add-member-btn" onClick={() => setEquipmentModalOpen(true)}>💻{isAdmin ? ' +' : ''}</button>
           <button className={`vac-toggle-btn${vacMode ? ' active' : ''}`} onClick={() => { setVacMode(v => !v); setVacModalDate(null) }}>연차</button>
           <button className="month-nav-btn" onClick={() => {
             if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
@@ -873,6 +920,7 @@ export default function App() {
                             <span className="assignee-short">{t.assignee.slice(0, 1)}</span>
                           </span>
                         )}
+                        {t.equipment?.length > 0 && <span className="cell-equip-icon">💻</span>}
                       </div>
                     )
                   })}
@@ -1159,6 +1207,7 @@ export default function App() {
                     </div>
                     <div className="todo-actions">
                       <button className="icon-btn" title="담당자" onClick={e => handleAssigneeBtn(e, todo)}>👤</button>
+                      <button className={`icon-btn${todo.equipment?.length ? ' equip-active' : ''}`} title="장비" onClick={e => handleEquipBtn(e, todo)}>💻</button>
                       <button className="icon-btn del-btn" onClick={() => deleteTodoItem(todo.id)}>×</button>
                     </div>
                   </div>
@@ -1200,6 +1249,33 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* EQUIP PICKER */}
+      {equipPickerTodoId && (() => {
+        const equipTodo = modalTodos.find(t => t.id === equipPickerTodoId)
+        if (!equipTodo) return null
+        return (
+          <div className="equip-picker" style={{ top: equipPickerPos.top, left: equipPickerPos.left }}>
+            {equipment.length === 0
+              ? <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '6px' }}>등록된 장비 없음</div>
+              : equipment.map(name => {
+                const checked = equipTodo.equipment?.includes(name)
+                return (
+                  <label key={name} className="equip-picker-item">
+                    <input type="checkbox" checked={!!checked}
+                      onChange={() => {
+                        const cur = equipTodo.equipment || []
+                        const next = checked ? cur.filter(e => e !== name) : [...cur, name]
+                        setTodoEquipment(equipTodo.id, next)
+                      }} />
+                    <span>{name}</span>
+                  </label>
+                )
+              })
+            }
+          </div>
+        )
+      })()}
 
       {/* ASSIGNEE PICKER */}
       {openPickerId && pickerTodo && (
@@ -1307,6 +1383,61 @@ export default function App() {
               />
               <button onClick={addMember}>추가</button>
             </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* EQUIPMENT MODAL */}
+      {equipmentModalOpen && (
+        <div className="member-overlay-bg" onClick={e => { if (e.target === e.currentTarget) setEquipmentModalOpen(false) }}>
+          <div className="member-modal equip-modal">
+            <div className="modal-header" style={{ background: 'var(--beige)' }}>
+              <span className="modal-date-label">💻 장비 관리</span>
+              <button className="modal-close" onClick={() => setEquipmentModalOpen(false)}>×</button>
+            </div>
+            <div className="equip-grid">
+              {Array.from({ length: 25 }, (_, i) => {
+                const name = equipment[i]
+                return (
+                  <div key={i} className={`equip-cell${name ? ' filled' : ''}`}>
+                    {name && (
+                      isAdmin && editingEquipItem === name ? (
+                        <input
+                          autoFocus
+                          className="equip-cell-input"
+                          value={editEquipText}
+                          onChange={e => setEditEquipText(e.target.value)}
+                          onBlur={() => finishEquipEdit(name)}
+                          onKeyDown={e => { if (e.key === 'Enter') finishEquipEdit(name); if (e.key === 'Escape') setEditingEquipItem(null) }}
+                        />
+                      ) : (
+                        <>
+                          <span className="equip-cell-name"
+                            onClick={() => { if (isAdmin) { setEditingEquipItem(name); setEditEquipText(name) } }}
+                          >{name}</span>
+                          {isAdmin && <button className="equip-cell-del" onClick={() => saveEquipment(equipment.filter(e => e !== name))}>×</button>}
+                        </>
+                      )
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            {isAdmin && (
+              <div className="member-footer">
+                <input
+                  type="text"
+                  placeholder="장비명 입력"
+                  maxLength={20}
+                  autoComplete="off"
+                  value={equipInput}
+                  onChange={e => setEquipInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addEquipItem()}
+                  disabled={equipment.length >= 25}
+                />
+                <button onClick={addEquipItem} disabled={equipment.length >= 25}>추가</button>
+              </div>
             )}
           </div>
         </div>
