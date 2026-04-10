@@ -164,7 +164,7 @@ export default function App() {
       const entry = prev[name] || { total: 0, remaining: 0, days: {} }
       const used = Object.values(entry.days || {}).reduce((s, d) => s + (d.value || 0), 0)
       const newTotal = calcAnnualLeave(joinDate, curYear)
-      return { ...prev, [name]: { ...entry, joinDate, total: newTotal, remaining: newTotal - used } }
+      return { ...prev, [name]: { ...entry, joinDate, total: newTotal, autoTotal: newTotal, remaining: newTotal - used } }
     })
   }
 
@@ -964,12 +964,21 @@ export default function App() {
                       <div className="vac-days-popup-fields">
                         <div className="vac-days-popup-field">
                           <span className="vac-days-field-label">총</span>
-                          {isAdmin
-                            ? <input className="vac-days-popup-input" type="text" inputMode="decimal"
-                                value={getVacTotal(name)}
-                                onChange={e => vacSetTotal(name, parseFloat(e.target.value) || 0)} />
-                            : <span className="vac-days-popup-input vac-days-readonly">{getVacTotal(name)}</span>
-                          }
+                          <div className="vac-total-wrap">
+                            {isAdmin
+                              ? <input
+                                  className={`vac-days-popup-input${vacData[name]?.autoTotal != null && getVacTotal(name) !== vacData[name].autoTotal ? ' vac-total-modified' : ''}`}
+                                  type="text" inputMode="decimal"
+                                  value={getVacTotal(name)}
+                                  onChange={e => vacSetTotal(name, parseFloat(e.target.value) || 0)} />
+                              : <span className={`vac-days-popup-input vac-days-readonly${vacData[name]?.autoTotal != null && getVacTotal(name) !== vacData[name].autoTotal ? ' vac-total-modified' : ''}`}>{getVacTotal(name)}</span>
+                            }
+                            {vacData[name]?.autoTotal != null && getVacTotal(name) !== vacData[name].autoTotal && (
+                              <span className="vac-total-diff">
+                                {getVacTotal(name) - vacData[name].autoTotal > 0 ? '+' : ''}{getVacTotal(name) - vacData[name].autoTotal}
+                              </span>
+                            )}
+                          </div>
                           <span className="vac-days-unit">일</span>
                         </div>
                         <div className="vac-days-popup-field">
