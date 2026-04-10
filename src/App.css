@@ -569,7 +569,7 @@
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   padding: 8px 10px 6px;
-  min-height: 130px;
+  min-height: clamp(80px, 12vh, 180px);
   overflow: hidden;
   cursor: pointer;
   position: relative;
