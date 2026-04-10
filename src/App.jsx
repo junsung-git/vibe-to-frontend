@@ -51,9 +51,10 @@ export default function App() {
   const [members, setMembers] = useState([])
   const [equipment, setEquipment] = useState([])
   const [equipmentModalOpen, setEquipmentModalOpen] = useState(false)
-  const [equipInput, setEquipInput] = useState('')
   const [editingEquipItem, setEditingEquipItem] = useState(null)
   const [editEquipText, setEditEquipText] = useState('')
+  const [addingEquipIdx, setAddingEquipIdx] = useState(null)
+  const [addingEquipText, setAddingEquipText] = useState('')
   const [equipPickerTodoId, setEquipPickerTodoId] = useState(null)
   const [equipPickerPos, setEquipPickerPos] = useState({ top: 0, left: 0 })
 
@@ -525,12 +526,6 @@ export default function App() {
   function saveEquipment(list) {
     setEquipment(list)
     saveSetting('equipment', list)
-  }
-  function addEquipItem() {
-    const name = equipInput.trim()
-    if (!name || equipment.includes(name)) return
-    saveEquipment([...equipment, name])
-    setEquipInput('')
   }
   function finishEquipEdit(oldName) {
     const newName = editEquipText.trim()
@@ -1400,8 +1395,10 @@ export default function App() {
               {Array.from({ length: 50 }, (_, i) => {
                 const name = equipment[i]
                 return (
-                  <div key={i} className={`equip-cell${name ? ' filled' : ''}`}>
-                    {name && (
+                  <div key={i} className={`equip-cell${name ? ' filled' : ''}${isAdmin && !name ? ' addable' : ''}`}
+                    onClick={() => { if (isAdmin && !name && addingEquipIdx !== i) { setAddingEquipIdx(i); setAddingEquipText('') } }}
+                  >
+                    {name ? (
                       isAdmin && editingEquipItem === name ? (
                         <input
                           autoFocus
@@ -1414,31 +1411,44 @@ export default function App() {
                       ) : (
                         <>
                           <span className="equip-cell-name"
-                            onClick={() => { if (isAdmin) { setEditingEquipItem(name); setEditEquipText(name) } }}
+                            onClick={e => { e.stopPropagation(); if (isAdmin) { setEditingEquipItem(name); setEditEquipText(name) } }}
                           >{name}</span>
-                          {isAdmin && <button className="equip-cell-del" onClick={() => saveEquipment(equipment.filter(e => e !== name))}>×</button>}
+                          {isAdmin && <button className="equip-cell-del" onClick={e => { e.stopPropagation(); const next = [...equipment]; next[i] = ''; saveEquipment(next) }}>×</button>}
                         </>
                       )
-                    )}
+                    ) : isAdmin && addingEquipIdx === i ? (
+                      <input
+                        autoFocus
+                        className="equip-cell-input"
+                        value={addingEquipText}
+                        onChange={e => setAddingEquipText(e.target.value)}
+                        onBlur={() => {
+                          const v = addingEquipText.trim()
+                          if (v && !equipment.includes(v)) {
+                            const next = [...equipment]
+                            next[i] = v
+                            saveEquipment(next)
+                          }
+                          setAddingEquipIdx(null); setAddingEquipText('')
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const v = addingEquipText.trim()
+                            if (v && !equipment.includes(v)) {
+                              const next = [...equipment]
+                              next[i] = v
+                              saveEquipment(next)
+                            }
+                            setAddingEquipIdx(null); setAddingEquipText('')
+                          }
+                          if (e.key === 'Escape') { setAddingEquipIdx(null); setAddingEquipText('') }
+                        }}
+                      />
+                    ) : null}
                   </div>
                 )
               })}
             </div>
-            {isAdmin && (
-              <div className="member-footer">
-                <input
-                  type="text"
-                  placeholder="장비명 입력"
-                  maxLength={20}
-                  autoComplete="off"
-                  value={equipInput}
-                  onChange={e => setEquipInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addEquipItem()}
-                  disabled={equipment.length >= 50}
-                />
-                <button onClick={addEquipItem} disabled={equipment.length >= 50}>추가</button>
-              </div>
-            )}
           </div>
         </div>
       )}
