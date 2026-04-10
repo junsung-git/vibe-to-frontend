@@ -915,7 +915,6 @@ export default function App() {
                             <span className="assignee-short">{t.assignee.slice(0, 1)}</span>
                           </span>
                         )}
-                        {t.equipment?.length > 0 && <span className="cell-equip-icon">💻</span>}
                       </div>
                     )
                   })}
@@ -1197,12 +1196,20 @@ export default function App() {
                             >{displayText(todo.text)}</span>
                           </div>
                           {todo.assignee && <div className="todo-assignee">👤 {todo.assignee}</div>}
+                          {todo.equipment?.filter(e => e).length > 0 && (
+                            <div className="todo-equip-list">
+                              {todo.equipment.filter(e => e).map(e => <span key={e} className="todo-equip-tag">{e}</span>)}
+                              <button className="todo-equip-edit-btn" onClick={ev => handleEquipBtn(ev, todo)}>수정</button>
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
                     <div className="todo-actions">
                       <button className="icon-btn" title="담당자" onClick={e => handleAssigneeBtn(e, todo)}>👤</button>
-                      <button className={`icon-btn${todo.equipment?.length ? ' equip-active' : ''}`} title="장비" onClick={e => handleEquipBtn(e, todo)}>💻</button>
+                      {!todo.equipment?.filter(e => e).length && (
+                        <button className="icon-btn" title="장비" onClick={e => handleEquipBtn(e, todo)}>💻</button>
+                      )}
                       <button className="icon-btn del-btn" onClick={() => deleteTodoItem(todo.id)}>×</button>
                     </div>
                   </div>
@@ -1251,9 +1258,9 @@ export default function App() {
         if (!equipTodo) return null
         return (
           <div className="equip-picker" style={{ top: equipPickerPos.top, left: equipPickerPos.left }}>
-            {equipment.length === 0
+            {equipment.filter(e => e).length === 0
               ? <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '6px' }}>등록된 장비 없음</div>
-              : equipment.map(name => {
+              : equipment.filter(e => e).map(name => {
                 const checked = equipTodo.equipment?.includes(name)
                 return (
                   <label key={name} className="equip-picker-item">

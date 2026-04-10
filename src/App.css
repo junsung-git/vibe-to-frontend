@@ -1020,7 +1020,32 @@
 .equip-picker-item:hover { background: var(--beige); }
 .equip-picker-item input[type="checkbox"] { cursor: pointer; accent-color: var(--green); }
 .icon-btn.equip-active { color: var(--green); }
-.cell-equip-icon { font-size: 0.5rem; line-height: 1; flex-shrink: 0; }
+.todo-equip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  margin-top: 2px;
+}
+.todo-equip-tag {
+  font-size: 0.68rem;
+  background: var(--green-muted);
+  color: var(--green);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 600;
+}
+.todo-equip-edit-btn {
+  font-size: 0.62rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.todo-equip-edit-btn:hover { border-color: var(--green); color: var(--green); }
 
 /* ── SEARCH ── */
 .search-overlay {
