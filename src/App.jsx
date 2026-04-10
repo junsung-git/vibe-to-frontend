@@ -839,17 +839,17 @@ export default function App() {
           <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤{isAdmin ? ' +' : ''}</button>
           <button className="add-member-btn" onClick={() => setEquipmentModalOpen(true)}>💻{isAdmin ? ' +' : ''}</button>
           <button className={`vac-toggle-btn${vacMode ? ' active' : ''}`} onClick={() => { setVacMode(v => !v); setVacModalDate(null) }}>연차</button>
-        </div>
-        <div className="month-tabs" ref={monthTabsRef}>
           <button className="month-nav-btn" onClick={() => {
             if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
           }}>‹</button>
-          {MONTHS.map((m, i) => (
-            <button key={m} className={i === curMonth ? 'active' : ''} onClick={() => setCurMonth(i)}>{m}</button>
-          ))}
           <button className="month-nav-btn" onClick={() => {
             if (curMonth === 11) { setCurYear(y => y + 1); setCurMonth(0) } else setCurMonth(m => m + 1)
           }}>›</button>
+        </div>
+        <div className="month-tabs" ref={monthTabsRef}>
+          {MONTHS.map((m, i) => (
+            <button key={m} className={i === curMonth ? 'active' : ''} onClick={() => setCurMonth(i)}>{m}</button>
+          ))}
         </div>
       </div>
 
