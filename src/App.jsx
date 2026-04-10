@@ -1198,7 +1198,12 @@ export default function App() {
                           {todo.assignee && <div className="todo-assignee">👤 {todo.assignee}</div>}
                           {todo.equipment?.filter(e => e).length > 0 && (
                             <div className="todo-equip-list">
-                              {todo.equipment.filter(e => e).map(e => <span key={e} className="todo-equip-tag">{e}</span>)}
+                              {todo.equipment.filter(e => e).map(e => (
+                                <span key={e} className="todo-equip-tag">
+                                  {e}
+                                  <button className="todo-equip-tag-del" onClick={ev => { ev.stopPropagation(); setTodoEquipment(todo.id, todo.equipment.filter(x => x !== e)) }}>×</button>
+                                </span>
+                              ))}
                               <button className="todo-equip-edit-btn" onClick={ev => handleEquipBtn(ev, todo)}>수정</button>
                             </div>
                           )}
