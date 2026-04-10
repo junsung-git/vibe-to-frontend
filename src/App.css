@@ -508,7 +508,7 @@
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
-  height: 40px;
+  height: 52px;
   align-items: stretch;
   flex-shrink: 0;
 }
@@ -518,8 +518,8 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 0 11px;
-  font-size: 0.67rem;
+  padding: 0 16px;
+  font-size: 0.82rem;
   letter-spacing: 0.1em;
   font-weight: 600;
   color: var(--text-muted);
@@ -568,8 +568,8 @@
 .cal-cell {
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  padding: 6px 8px 5px;
-  min-height: 52px;
+  padding: 8px 10px 6px;
+  min-height: 90px;
   overflow: hidden;
   cursor: pointer;
   position: relative;
