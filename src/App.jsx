@@ -146,8 +146,9 @@ export default function App() {
       const yearsAtJan1 = Math.floor(monthsAtJan1 / 12)
       leaveCount = Math.min(15 + Math.floor((yearsAtJan1 - 1) / 2), 25)
     } else if (monthsAtEnd >= 12) {
-      // 올해 중 1주년 도래: 15일
-      leaveCount = 15
+      // 올해 중 1주년 도래: 연초 기준 근속 개월 비례 지급
+      // 예: 1월 전 1개월 근속 → round(15 × 1/12) = 1일
+      leaveCount = Math.round(15 * monthsAtJan1 / 12)
     } else {
       // 1년 미만: 당해 연도 내 발생한 월차 (입사일 기준 날짜까지 정확하게)
       const prevYearEnd = new Date(targetYear, 0, 0)  // 전년도 12월31일
