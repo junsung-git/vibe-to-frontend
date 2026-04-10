@@ -936,17 +936,16 @@
 .member-footer button:disabled { background: var(--border); cursor: default; }
 
 /* ── EQUIPMENT ── */
-.equip-modal { max-width: 680px !important; }
+.equip-modal { max-width: 400px !important; }
 .equip-grid {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   padding: 14px 18px;
   flex: 1;
   overflow-y: auto;
 }
 .equip-cell {
-  aspect-ratio: 1.4;
   border: 1px dashed var(--border);
   border-radius: 6px;
   display: flex;
@@ -955,7 +954,8 @@
   position: relative;
   font-size: 0.72rem;
   color: var(--text-muted);
-  min-height: 36px;
+  min-height: 28px;
+  padding: 2px;
 }
 .equip-cell.filled {
   border: 1px solid var(--green-muted);
