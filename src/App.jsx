@@ -902,7 +902,7 @@ export default function App() {
                         {t.assignee && (
                           <span className="cell-assignee" style={t.color && !t.done ? { color: t.color } : {}}>
                             <span className="assignee-full">{t.assignee}</span>
-                            <span className="assignee-short">{t.assignee.slice(0, 1)}</span>
+                            <span className="assignee-short">{t.assignee.slice(0, 2)}</span>
                           </span>
                         )}
                       </div>
