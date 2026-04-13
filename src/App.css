@@ -508,7 +508,7 @@
   .vac-name-full { display: none; }
   .vac-name-short { display: inline; }
   .vac-cell-grid { grid-template-columns: repeat(2, 1fr); }
-  .vac-cell-name, .vac-cell-half { font-size: 0.62rem; }
+  .vac-cell-name, .vac-cell-half { font-size: 0.52rem; overflow: visible; text-overflow: clip; }
 }
 
 /* ── MONTH TABS ── */
