@@ -902,7 +902,7 @@ export default function App() {
                         {t.assignee && (
                           <span className="cell-assignee" style={t.color && !t.done ? { color: t.color } : {}}>
                             <span className="assignee-full">{t.assignee}</span>
-                            <span className="assignee-short">{t.assignee.slice(0, 2)}</span>
+                            <span className="assignee-short">{t.assignee.slice(0, 1)}</span>
                           </span>
                         )}
                       </div>
@@ -1046,10 +1046,10 @@ export default function App() {
                           const dayEntry = getVacDay(name, day.dk)
                           if (!dayEntry.value) return null
                           return dayEntry.value === 1
-                            ? <span key={name} className="vac-cell-name">{name}</span>
+                            ? <span key={name} className="vac-cell-name"><span className="vac-name-full">{name}</span><span className="vac-name-short">{name.slice(0, 2)}</span></span>
                             : dayEntry.halfType === 'pm'
-                              ? <span key={name} className="vac-cell-half vac-cell-pm">/{name}</span>
-                              : <span key={name} className="vac-cell-half vac-cell-am">{name}/</span>
+                              ? <span key={name} className="vac-cell-half vac-cell-pm">/<span className="vac-name-full">{name}</span><span className="vac-name-short">{name.slice(0, 2)}</span></span>
+                              : <span key={name} className="vac-cell-half vac-cell-am"><span className="vac-name-full">{name}</span><span className="vac-name-short">{name.slice(0, 2)}</span>/</span>
                         })}
                       </div>
                     </div>
@@ -1068,10 +1068,10 @@ export default function App() {
                           const dayEntry = getVacDay(name, day.dk)
                           if (!dayEntry.value) return null
                           return dayEntry.value === 1
-                            ? <span key={name} className="vac-cell-name">{name}</span>
+                            ? <span key={name} className="vac-cell-name"><span className="vac-name-full">{name}</span><span className="vac-name-short">{name.slice(0, 2)}</span></span>
                             : dayEntry.halfType === 'pm'
-                              ? <span key={name} className="vac-cell-half vac-cell-pm">/{name}</span>
-                              : <span key={name} className="vac-cell-half vac-cell-am">{name}/</span>
+                              ? <span key={name} className="vac-cell-half vac-cell-pm">/<span className="vac-name-full">{name}</span><span className="vac-name-short">{name.slice(0, 2)}</span></span>
+                              : <span key={name} className="vac-cell-half vac-cell-am"><span className="vac-name-full">{name}</span><span className="vac-name-short">{name.slice(0, 2)}</span>/</span>
                         })}
                       </div>
                     </div>

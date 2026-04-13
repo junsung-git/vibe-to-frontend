@@ -503,6 +503,12 @@
   white-space: nowrap;
 }
 
+.vac-name-short { display: none; }
+@media (max-width: 600px) {
+  .vac-name-full { display: none; }
+  .vac-name-short { display: inline; }
+}
+
 /* ── MONTH TABS ── */
 .month-tabs {
   display: flex;
