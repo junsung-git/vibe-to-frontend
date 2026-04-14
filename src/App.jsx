@@ -299,6 +299,7 @@ export default function App() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value }),
+        keepalive: true,
       })
     } catch (e) { console.error('설정 저장 실패:', e) }
   }
