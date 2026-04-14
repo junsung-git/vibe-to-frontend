@@ -340,15 +340,12 @@ export default function App() {
     }
   }, [isLoggedIn, loadAllTodos, loadSettings])
 
-  // vacData 변경 시 DB 저장 (디바운스 500ms)
+  // vacData 변경 시 DB 즉시 저장
   // vacDataLoaded가 true일 때만 저장 (DB 로드 전에 빈값으로 덮어쓰기 방지)
   const vacDataLoaded = useRef(false)
   useEffect(() => {
     if (!vacDataLoaded.current) return
-    const timer = setTimeout(() => {
-      saveSetting('vacationData', vacData)
-    }, 500)
-    return () => clearTimeout(timer)
+    saveSetting('vacationData', vacData)
   }, [vacData])
 
   // 연도 팝업 외부 클릭 닫기
