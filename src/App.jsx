@@ -170,6 +170,7 @@ export default function App() {
   }
 
   function vacSetJoinDate(name, joinDate) {
+    lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { total: 0, remaining: 0, days: {} }
       const used = Object.values(entry.days || {}).reduce((s, d) => s + (d.value || 0), 0)
@@ -191,6 +192,7 @@ export default function App() {
   }
   // +1: value가 1 미만인 첫 번째 칸을 찾아 1로 설정
   function vacAddFull(name, startDk) {
+    lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
       let targetDk = startDk
@@ -211,6 +213,7 @@ export default function App() {
   }
   // halfType: 'am' = 이름/, 'pm' = /이름
   function vacAddHalf(name, startDk, halfType) {
+    lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
       let targetDk = startDk
@@ -232,6 +235,7 @@ export default function App() {
     })
   }
   function vacClearDay(name, dk) {
+    lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { remaining: 0, days: {} }
       const refund = entry.days[dk]?.value || 0
@@ -241,12 +245,14 @@ export default function App() {
     })
   }
   function vacSetRemaining(name, val) {
+    lastVacChangedName.current = name
     setVacData(prev => ({
       ...prev,
       [name]: { ...(prev[name] || { total: 0, remaining: 0, days: {} }), remaining: val }
     }))
   }
   function vacSetTotal(name, val) {
+    lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { total: 0, remaining: 0, days: {} }
       const used = Object.values(entry.days || {}).reduce((sum, d) => sum + (d.value || 0), 0)
@@ -256,6 +262,18 @@ export default function App() {
   function getVacTotal(name) {
     return vacData[name]?.total ?? 0
   }
+
+  // ── MEMO ──
+  const [memoOpen, setMemoOpen] = useState(false)
+  const [memoText, setMemoText] = useState('')
+  const memoSaveTimer = useRef(null)
+
+  // ── SHOVEL (PROJECT PANEL) ──
+  const [shovelOpen, setShovelOpen] = useState(false)
+  const [shovelView, setShovelView] = useState('list')
+  const [shovelTodo, setShovelTodo] = useState(null)
+  const [projectDetails, setProjectDetails] = useState({})
+  const projectDetailSaveTimer = useRef(null)
 
   // ── OTHER MODALS ──
   const [memberModalOpen, setMemberModalOpen] = useState(false)
@@ -272,24 +290,63 @@ export default function App() {
   // ── API ──
   const loadSettings = useCallback(async () => {
     try {
-      const [memRes, pwRes, vacRes, eqRes] = await Promise.all([
+      // Phase 1: 멤버 독립 설정 로드
+      const [memRes, pwRes, eqRes, memoRes] = await Promise.all([
         fetch(`${SETTINGS_API}/members`),
         fetch(`${SETTINGS_API}/passwords`),
-        fetch(`${SETTINGS_API}/vacationData`),
         fetch(`${SETTINGS_API}/equipment`),
+        fetch(`${SETTINGS_API}/memo`),
       ])
       const memData = await memRes.json()
       const pwData = await pwRes.json()
-      const vacD = await vacRes.json()
       const eqData = await eqRes.json()
-      if (memData.value !== null) setMembers(memData.value)
+      const memoData = await memoRes.json()
+      const memberList = memData.value || []
+      if (memData.value !== null) setMembers(memberList)
       if (pwData.value !== null) setPasswords(pwData.value)
-      if (vacD.value !== null) setVacData(vacD.value)
       if (eqData.value !== null) setEquipment(eqData.value)
-      vacDataLoaded.current = true  // DB 로드 완료 후에만 저장 허용
+      if (memoData.value !== null) setMemoText(memoData.value || '')
+
+      // Phase 2: 연차 데이터 로드
+      // 구 blob을 기본값으로 먼저 로드 후, 개별 키가 있으면 해당 사람 데이터만 덮어씀 (완전 마이그레이션)
+      const vacRes = await fetch(`${SETTINGS_API}/vacationData`)
+      const vacD = await vacRes.json()
+      let vacCombined = vacD.value ? { ...vacD.value } : {}
+
+      if (memberList.length > 0) {
+        const vacResponses = await Promise.all(
+          memberList.map(name => fetch(`${SETTINGS_API}/vac-${encodeURIComponent(name)}`))
+        )
+        const vacResults = await Promise.all(vacResponses.map(r => r.json()))
+        memberList.forEach((name, i) => {
+          if (vacResults[i].value !== null) {
+            const perPerson = vacResults[i].value
+            const blobData = vacCombined[name] || {}
+            const blobDays = blobData.days || {}
+            const perPersonDays = perPerson.days || {}
+            // blob 날짜가 우선(역사 기록 보존), 개별키에만 있는 날짜는 추가
+            const mergedDays = { ...perPersonDays, ...blobDays }
+            // 개별키 remaining이 음수면(손상된 데이터) blob 값 사용
+            const remaining = (perPerson.remaining !== undefined && perPerson.remaining >= 0)
+              ? perPerson.remaining
+              : (blobData.remaining ?? 0)
+            const total = perPerson.total || blobData.total
+            const joinDate = perPerson.joinDate || blobData.joinDate
+            const autoTotal = perPerson.autoTotal || blobData.autoTotal
+            vacCombined[name] = { ...blobData, ...perPerson, days: mergedDays, remaining, total, joinDate, autoTotal }
+          }
+        })
+      }
+
+      if (Object.keys(vacCombined).length > 0) {
+        vacDataFromLoad.current = true
+        setVacData(vacCombined)
+      }
+
+      vacDataLoaded.current = true
     } catch (e) {
       console.error('설정 로드 실패:', e)
-      vacDataLoaded.current = true  // 로드 실패해도 이후 변경은 저장 허용
+      vacDataLoaded.current = true
     }
   }, [])
 
@@ -318,6 +375,7 @@ export default function App() {
           assignee: t.assignee || '',
           color: t.color || TODO_COLORS[0].color,
           equipment: t.equipment || [],
+          marked: t.marked || false,
         })
       })
       setTodosMap(map)
@@ -341,13 +399,36 @@ export default function App() {
     }
   }, [isLoggedIn, loadAllTodos, loadSettings])
 
-  // vacData 변경 시 DB 즉시 저장
-  // vacDataLoaded가 true일 때만 저장 (DB 로드 전에 빈값으로 덮어쓰기 방지)
+  // vacData 변경 시 해당 사람 개별 키로 저장 (다른 사람 데이터 덮어쓰기 방지)
   const vacDataLoaded = useRef(false)
+  const vacDataFromLoad = useRef(false)
+  const lastVacChangedName = useRef(null)
   useEffect(() => {
     if (!vacDataLoaded.current) return
-    saveSetting('vacationData', vacData)
+    if (vacDataFromLoad.current) { vacDataFromLoad.current = false; return }
+    const name = lastVacChangedName.current
+    lastVacChangedName.current = null
+    if (name && vacData[name] !== undefined) {
+      saveSetting('vac-' + name, vacData[name])
+    }
   }, [vacData])
+
+  // 페이지 닫기 전 미완료 저장 강제 flush
+  useEffect(() => {
+    const handler = () => {
+      if (memoSaveTimer.current) {
+        clearTimeout(memoSaveTimer.current)
+        saveSetting('memo', memoText)
+      }
+      if (projectDetailSaveTimer.current && shovelTodo) {
+        clearTimeout(projectDetailSaveTimer.current)
+        const lines = projectDetails[shovelTodo.id]
+        if (lines) saveSetting('pd-' + shovelTodo.id, lines)
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [memoText, shovelTodo, projectDetails])
 
   // 연도 팝업 외부 클릭 닫기
   useEffect(() => {
@@ -540,6 +621,65 @@ export default function App() {
     setEquipPickerTodoId(todo.id)
   }
 
+  async function setTodoMarked(id, marked) {
+    try {
+      await fetch(`${API}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ marked }),
+      })
+      await loadAllTodos()
+    } catch (e) { console.error('마킹 설정 실패:', e) }
+  }
+
+  function getProjectLines(todoId) {
+    const d = projectDetails[todoId]
+    if (d?.lines) return d.lines
+    return Array.from({ length: 20 }, () => ({ memo: '', status: '' }))
+  }
+
+  function updateProjectLine(todoId, lineIdx, field, value) {
+    setProjectDetails(prev => {
+      const existing = prev[todoId]?.lines || Array.from({ length: 20 }, () => ({ memo: '', status: '' }))
+      const newLines = existing.map((l, i) => i === lineIdx ? { ...l, [field]: value } : l)
+      const todoData = { lines: newLines }
+      clearTimeout(projectDetailSaveTimer.current)
+      projectDetailSaveTimer.current = setTimeout(() => saveSetting('pd-' + todoId, todoData), 600)
+      return { ...prev, [todoId]: todoData }
+    })
+  }
+
+  async function openShovelDetail(todo) {
+    setShovelTodo(todo)
+    setShovelView('detail')
+    // 해당 todoId의 상세 데이터만 로드 (다른 프로젝트와 충돌 없음)
+    try {
+      const res = await fetch(`${SETTINGS_API}/pd-${todo.id}`)
+      const data = await res.json()
+      if (data.value !== null) {
+        setProjectDetails(prev => ({ ...prev, [todo.id]: data.value }))
+      } else {
+        // 기존 blob 포맷 fallback (마이그레이션)
+        const oldRes = await fetch(`${SETTINGS_API}/projectDetails`)
+        const oldData = await oldRes.json()
+        if (oldData.value?.[todo.id]) {
+          setProjectDetails(prev => ({ ...prev, [todo.id]: oldData.value[todo.id] }))
+        }
+      }
+    } catch {}
+  }
+
+  function addProjectLine(todoId) {
+    setProjectDetails(prev => {
+      const existing = prev[todoId]?.lines || Array.from({ length: 20 }, () => ({ memo: '', status: '' }))
+      const newLines = [...existing, { memo: '', status: '' }]
+      const todoData = { lines: newLines }
+      clearTimeout(projectDetailSaveTimer.current)
+      projectDetailSaveTimer.current = setTimeout(() => saveSetting('pd-' + todoId, todoData), 600)
+      return { ...prev, [todoId]: todoData }
+    })
+  }
+
   // ── MEMBERS ──
   function saveMembers(list) {
     setMembers(list)
@@ -556,14 +696,29 @@ export default function App() {
     setEditingMember(null)
     if (!newName || newName === oldName || members.includes(newName)) return
     saveMembers(members.map(m => m === oldName ? newName : m))
-    // 연차 데이터 키도 함께 변경
+    // 연차 데이터 키도 함께 변경 + 새 이름으로 저장
     setVacData(prev => {
       if (!prev[oldName]) return prev
       const next = { ...prev, [newName]: prev[oldName] }
       delete next[oldName]
+      saveSetting('vac-' + newName, prev[oldName])
       return next
     })
   }
+
+  // ── MARKED TODOS THIS MONTH ──
+  const markedTodosThisMonth = useMemo(() => {
+    const result = []
+    Object.entries(todosMap).forEach(([dk, todos]) => {
+      const [y, m] = dk.split('-').map(Number)
+      if (y === curYear && m === curMonth + 1) {
+        todos.forEach(todo => {
+          if (todo.marked) result.push({ dk, todo })
+        })
+      }
+    })
+    return result.sort((a, b) => a.dk.localeCompare(b.dk))
+  }, [todosMap, curYear, curMonth])
 
   // ── SEARCH ──
   const searchResults = useMemo(() => {
@@ -621,11 +776,13 @@ export default function App() {
     return result
   }, [todosMap])
 
-  // 연차 캘린더용: 현재 멤버 + 삭제됐지만 데이터 있는 멤버
-  const vacMembers = useMemo(() => {
+  // 연차 달력 셀 표시용: 현재 멤버 + 삭제됐지만 연차 기록 있는 멤버 (기록 유지)
+  const vacCalendarMembers = useMemo(() => {
     const extra = Object.keys(vacData).filter(n => !members.includes(n) && Object.keys(vacData[n]?.days || {}).length > 0)
     return [...members, ...extra]
   }, [members, vacData])
+  // 연차 등록 모달용: 현재 멤버만 (삭제된 멤버는 새로 추가 불가)
+  const vacMembers = useMemo(() => members, [members])
 
   // ── CALENDAR GRID ──
   const calDays = useMemo(() => {
@@ -840,13 +997,9 @@ export default function App() {
           )}
           <button className="add-member-btn" onClick={() => setMemberModalOpen(true)}>👤{isAdmin ? ' +' : ''}</button>
           <button className="add-member-btn" onClick={() => setEquipmentModalOpen(true)}>💻{isAdmin ? ' +' : ''}</button>
+          <button className={`memo-toggle-btn${memoOpen ? ' active' : ''}`} onClick={() => setMemoOpen(v => !v)}>📝 메모</button>
           <button className={`vac-toggle-btn${vacMode ? ' active' : ''}`} onClick={() => { setVacMode(v => !v); setVacModalDate(null) }}>연차</button>
-          <button className="month-nav-btn" onClick={() => {
-            if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
-          }}>‹</button>
-          <button className="month-nav-btn" onClick={() => {
-            if (curMonth === 11) { setCurYear(y => y + 1); setCurMonth(0) } else setCurMonth(m => m + 1)
-          }}>›</button>
+          <button className={`shovel-btn${shovelOpen ? ' active' : ''}`} onClick={() => { setShovelOpen(v => !v); setShovelView('list') }}>⛏</button>
         </div>
         <div className="month-tabs" ref={monthTabsRef}>
           {MONTHS.map((m, i) => (
@@ -910,6 +1063,15 @@ export default function App() {
               </div>
             )
           })}
+        </div>
+        <div className="cal-nav">
+          <button className="cal-nav-btn" onClick={() => {
+            if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
+          }}>‹</button>
+          <span className="cal-nav-label">{curYear}. {String(curMonth + 1).padStart(2, '0')}</span>
+          <button className="cal-nav-btn" onClick={() => {
+            if (curMonth === 11) { setCurYear(y => y + 1); setCurMonth(0) } else setCurMonth(m => m + 1)
+          }}>›</button>
         </div>
       </div>}
 
@@ -1040,7 +1202,7 @@ export default function App() {
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
                       <div className="vac-cell-grid">
-                        {vacMembers.map(name => {
+                        {vacCalendarMembers.map(name => {
                           const dayEntry = getVacDay(name, day.dk)
                           if (!dayEntry.value) return null
                           return dayEntry.value === 1
@@ -1062,7 +1224,7 @@ export default function App() {
                     <span className="cell-num">{day.d}</span>
                     <div className="cell-todos">
                       <div className="vac-cell-grid">
-                        {vacMembers.map(name => {
+                        {vacCalendarMembers.map(name => {
                           const dayEntry = getVacDay(name, day.dk)
                           if (!dayEntry.value) return null
                           return dayEntry.value === 1
@@ -1076,6 +1238,15 @@ export default function App() {
                   </div>
                 )
               })}
+            </div>
+            <div className="cal-nav">
+              <button className="cal-nav-btn" onClick={() => {
+                if (curMonth === 0) { setCurYear(y => y - 1); setCurMonth(11) } else setCurMonth(m => m - 1)
+              }}>‹</button>
+              <span className="cal-nav-label">{curYear}. {String(curMonth + 1).padStart(2, '0')}</span>
+              <button className="cal-nav-btn" onClick={() => {
+                if (curMonth === 11) { setCurYear(y => y + 1); setCurMonth(0) } else setCurMonth(m => m + 1)
+              }}>›</button>
             </div>
           </div>
         </div>
@@ -1199,6 +1370,11 @@ export default function App() {
                       )}
                     </div>
                     <div className="todo-actions">
+                      <button
+                        className={`icon-btn mark-btn${todo.marked ? ' marked' : ''}`}
+                        title="프로젝트 마킹"
+                        onClick={e => { e.stopPropagation(); setTodoMarked(todo.id, !todo.marked) }}
+                      >{todo.marked ? '☑' : '☐'}</button>
                       <button className="icon-btn" title="담당자" onClick={e => handleAssigneeBtn(e, todo)}>👤</button>
                       {!todo.equipment?.filter(e => e).length && (
                         <button className="icon-btn" title="장비" onClick={e => handleEquipBtn(e, todo)}>💻</button>
@@ -1385,6 +1561,102 @@ export default function App() {
               />
               <button onClick={addMember}>추가</button>
             </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MEMO MODAL */}
+      {memoOpen && (
+        <div className="memo-overlay-bg" onClick={e => { if (e.target === e.currentTarget) setMemoOpen(false) }}>
+          <div className="memo-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-date-label">📝 메모</span>
+              <button className="modal-close" onClick={() => setMemoOpen(false)}>×</button>
+            </div>
+            <textarea
+              className="memo-textarea"
+              placeholder="여기에 메모를 작성하세요..."
+              value={memoText}
+              autoFocus
+              onChange={e => {
+                const val = e.target.value
+                setMemoText(val)
+                clearTimeout(memoSaveTimer.current)
+                memoSaveTimer.current = setTimeout(() => saveSetting('memo', val), 600)
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* SHOVEL MODAL */}
+      {shovelOpen && (
+        <div className="shovel-overlay-bg" onClick={e => { if (e.target === e.currentTarget) setShovelOpen(false) }}>
+          <div className="shovel-modal" onClick={e => e.stopPropagation()}>
+            {shovelView === 'list' ? (
+              <>
+                <div className="modal-header shovel-header">
+                  <span className="modal-date-label">⛏ 프로젝트 현황 ({curYear}.{String(curMonth + 1).padStart(2, '0')})</span>
+                  <button className="modal-close" onClick={() => setShovelOpen(false)}>×</button>
+                </div>
+                <div className="shovel-list">
+                  {markedTodosThisMonth.length === 0
+                    ? <div className="empty-msg">마킹된 프로젝트가 없습니다<br /><span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>할일 모달에서 ☐ 버튼으로 마킹하세요</span></div>
+                    : markedTodosThisMonth.map(({ dk, todo }) => {
+                      const [y, m, d] = dk.split('-').map(Number)
+                      return (
+                        <div key={todo.id} className="shovel-list-item"
+                          onClick={() => openShovelDetail({ id: todo.id, text: displayText(todo.text), dk })}>
+                          <span className="shovel-item-date">{y}.{m}.{d}</span>
+                          <span className="shovel-item-text">{displayText(todo.text)}</span>
+                          <span className="shovel-item-arrow">›</span>
+                        </div>
+                      )
+                    })
+                  }
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="modal-header shovel-header">
+                  <button className="shovel-back-btn" onClick={() => setShovelView('list')}>‹ 목록</button>
+                  <span className="shovel-detail-title">
+                    {shovelTodo && (() => {
+                      const [y, m, d] = shovelTodo.dk.split('-').map(Number)
+                      return `${y}.${m}.${d} ${shovelTodo.text}`
+                    })()}
+                  </span>
+                  <button className="modal-close" onClick={() => setShovelOpen(false)}>×</button>
+                </div>
+                <div className="shovel-detail">
+                  {shovelTodo && getProjectLines(shovelTodo.id).map((line, idx) => (
+                    <div key={idx} className="shovel-detail-row">
+                      <span className="shovel-row-num">{idx + 1}</span>
+                      <input
+                        className="shovel-row-memo"
+                        placeholder=""
+                        value={line.memo}
+                        onChange={e => updateProjectLine(shovelTodo.id, idx, 'memo', e.target.value)}
+                      />
+                      <div className="shovel-row-status">
+                        {['착수', '진행중', '프리뷰', '완료'].map(s => (
+                          <button key={s}
+                            className={`shovel-status-btn shovel-status-${s === '착수' ? 'start' : s === '진행중' ? 'progress' : s === '프리뷰' ? 'preview' : 'done'}${line.status === s ? ' active' : ''}`}
+                            onClick={() => updateProjectLine(shovelTodo.id, idx, 'status', line.status === s ? '' : s)}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {shovelTodo && (
+                    <div className="shovel-add-line-row">
+                      <button className="shovel-add-line-btn" onClick={() => addProjectLine(shovelTodo.id)}>+ 줄 추가</button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
