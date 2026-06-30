@@ -322,18 +322,16 @@ export default function App() {
           if (vacResults[i].value !== null) {
             const perPerson = vacResults[i].value
             const blobData = vacCombined[name] || {}
-            const blobDays = blobData.days || {}
-            const perPersonDays = perPerson.days || {}
-            // blob 날짜가 우선(역사 기록 보존), 개별키에만 있는 날짜는 추가
-            const mergedDays = { ...perPersonDays, ...blobDays }
-            // 개별키 remaining이 음수면(손상된 데이터) blob 값 사용
-            const remaining = (perPerson.remaining !== undefined && perPerson.remaining >= 0)
-              ? perPerson.remaining
-              : (blobData.remaining ?? 0)
-            const total = perPerson.total || blobData.total
-            const joinDate = perPerson.joinDate || blobData.joinDate
-            const autoTotal = perPerson.autoTotal || blobData.autoTotal
-            vacCombined[name] = { ...blobData, ...perPerson, days: mergedDays, remaining, total, joinDate, autoTotal }
+            // 손상된 개별키 판별: total 없거나 remaining 음수 → 구버전 버그로 생성된 불완전 데이터
+            const isCorrupted = !perPerson.total || (perPerson.remaining !== undefined && perPerson.remaining < 0)
+            if (isCorrupted) {
+              // 손상 키: blob 기준으로 개별키 days를 위에 덮음 (개별키의 최신 변경 우선)
+              const mergedDays = { ...(blobData.days || {}), ...(perPerson.days || {}) }
+              vacCombined[name] = { ...blobData, days: mergedDays }
+            } else {
+              // 정상 키: 그대로 사용 (삭제 정보 포함, blob 무시)
+              vacCombined[name] = perPerson
+            }
           }
         })
       }
