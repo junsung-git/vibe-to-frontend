@@ -560,6 +560,31 @@
   border-bottom-color: var(--green);
 }
 
+/* ── HOLIDAY NOTICE ── */
+.holiday-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 26px;
+  background: var(--green-muted);
+  border-bottom: 1px solid var(--green-light);
+  color: var(--green);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.holiday-notice span { flex: 1; }
+.holiday-notice-close {
+  background: none;
+  border: none;
+  color: var(--green);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+@media (max-width: 600px) {
+  .holiday-notice { padding: 8px 14px; font-size: 12px; }
+}
+
 /* ── CALENDAR ── */
 .calendar-wrap {
   flex: 1;

@@ -92,9 +92,14 @@ export default function App() {
            '2025-08-15','2025-10-03','2025-10-06','2025-10-07','2025-10-08',
            '2025-10-09','2025-12-25'],
     2026: ['2026-01-01','2026-02-16','2026-02-17','2026-02-18',
-           '2026-03-02','2026-05-05','2026-05-25','2026-06-03',
-           '2026-07-17','2026-08-17','2026-09-24','2026-09-25','2026-09-28',
+           '2026-03-02','2026-05-01','2026-05-05','2026-05-25','2026-06-03',
+           '2026-07-17','2026-08-17','2026-09-24','2026-09-25',
            '2026-10-05','2026-10-09','2026-12-25'],
+    // 2027: 우주항공청 2027년 월력요항 기준 (노동절·제헌절 포함, 토·일 겹침은 대체공휴일로 반영)
+    2027: ['2027-01-01','2027-02-08','2027-02-09','2027-03-01',
+           '2027-05-03','2027-05-05','2027-05-13','2027-07-19',
+           '2027-08-16','2027-09-14','2027-09-15','2027-09-16',
+           '2027-10-04','2027-10-11','2027-12-27'],
   }
 
   function getWeekdayHolidaysFrom(year, fromDate) {
@@ -125,7 +130,8 @@ export default function App() {
 
   // 입사일~toDate까지 누적 발생 연차/월차 합계
   // - 입사 후 월 1일씩 최대 11일 (월차)
-  // - 1주년마다 연차 발생: 1년=15일, 2년=15일, 3년=16일... 최대25일
+  // - 1주년마다 연차 발생 (근로기준법 제60조 제1·4항): 15일 + 최초 1년 초과 근속 매 2년마다 1일, 최대 25일
+  //   1·2년=15, 3·4년=16, 5·6년=17 ... 21년 이상=25
   function calcTotalLeaveEarned(join, toDate) {
     if (toDate < join) return 0
     const months = completedMonths(join, toDate)
@@ -169,10 +175,54 @@ export default function App() {
     return leaveCount + weekends + holidays
   }
 
+  // ── 2026년부터: 매년 1월 1일 리셋, 오늘 기준 자동 계산 ──
+  // 총일수 = 해당 연도 주말 + 평일공휴일 (입사 연도는 입사일부터) + 오늘까지 해당 연도에 발생한 월차/연차
+  // 남은 연차는 연말 수당 지급 → 이월 없음
+  const VAC_RESET_FROM_YEAR = 2026
+  const vacYear = new Date().getFullYear()
+  const isVacYearlyMode = vacYear >= VAC_RESET_FROM_YEAR
+
+  function calcYearAutoTotal(joinDateStr, year) {
+    const yearStart = new Date(year, 0, 1)
+    const yearEnd = new Date(year, 11, 31)
+    const join = joinDateStr ? new Date(joinDateStr + 'T00:00:00') : null
+    if (join && join > yearEnd) return 0
+    if (!HOLIDAYS_BY_YEAR[year]) console.warn(`${year}년 공휴일 목록이 없습니다 (HOLIDAYS_BY_YEAR)`)
+
+    const from = join && join > yearStart ? join : yearStart
+    const weekends = countWeekends(from, yearEnd)
+    const holidays = getWeekdayHolidaysFrom(year, from)
+
+    let leave = 0
+    if (join) {
+      const todayD = new Date()
+      todayD.setHours(0,0,0,0)
+      const asOf = todayD < yearEnd ? todayD : yearEnd
+      // 해당 연도 안에서 발생한 분만 (월차: 매월 입사일, 연차: 입사 기념일)
+      leave = Math.max(0, calcTotalLeaveEarned(join, asOf) - calcTotalLeaveEarned(join, new Date(year - 1, 11, 31)))
+    }
+    return weekends + holidays + leave
+  }
+
+  // 월력요항은 보통 6월에 발표 → 7월부터 다음 해 목록 입력 알림
+  const [holidayNoticeClosed, setHolidayNoticeClosed] = useState(false)
+  const holidayNoticeYear = !HOLIDAYS_BY_YEAR[vacYear] ? vacYear
+    : (new Date().getMonth() >= 6 && !HOLIDAYS_BY_YEAR[vacYear + 1]) ? vacYear + 1
+    : null
+
+  function getVacUsedInYear(name, year) {
+    const prefix = year + '-'
+    return Object.entries(vacData[name]?.days || {})
+      .filter(([dk]) => dk.startsWith(prefix))
+      .reduce((s, [, d]) => s + (d.value || 0), 0)
+  }
+
   function vacSetJoinDate(name, joinDate) {
     lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { total: 0, remaining: 0, days: {} }
+      // 연도별 모드: 총일수는 입사일로 매번 계산하므로 입사일만 저장
+      if (isVacYearlyMode) return { ...prev, [name]: { ...entry, joinDate } }
       const used = Object.values(entry.days || {}).reduce((s, d) => s + (d.value || 0), 0)
       const newTotal = calcAnnualLeave(joinDate, curYear)
       return { ...prev, [name]: { ...entry, joinDate, total: newTotal, autoTotal: newTotal, remaining: newTotal - used } }
@@ -182,8 +232,13 @@ export default function App() {
   function getVacDay(name, dk) {
     return vacData[name]?.days?.[dk] || { value: 0 }
   }
+  function getVacAutoTotal(name) {
+    if (!isVacYearlyMode) return vacData[name]?.autoTotal ?? null
+    return calcYearAutoTotal(vacData[name]?.joinDate, vacYear)
+  }
   function getVacRemaining(name) {
-    return vacData[name]?.remaining ?? 0
+    if (!isVacYearlyMode) return vacData[name]?.remaining ?? 0
+    return getVacTotal(name) - getVacUsedInYear(name, vacYear)
   }
   function addDaysToKey(dk, n) {
     const d = new Date(dk + 'T00:00:00')
@@ -244,7 +299,17 @@ export default function App() {
       return { ...prev, [name]: { ...entry, remaining: entry.remaining + refund, days: newDays } }
     })
   }
+  // 연도별 모드에서 관리자가 총/잔여를 직접 고치면 자동 계산값과의 차이만 adj[연도]에 저장
+  function vacSetYearAdj(name, targetTotal) {
+    lastVacChangedName.current = name
+    setVacData(prev => {
+      const entry = prev[name] || { total: 0, remaining: 0, days: {} }
+      const auto = calcYearAutoTotal(entry.joinDate, vacYear)
+      return { ...prev, [name]: { ...entry, adj: { ...(entry.adj || {}), [vacYear]: targetTotal - auto } } }
+    })
+  }
   function vacSetRemaining(name, val) {
+    if (isVacYearlyMode) return vacSetYearAdj(name, val + getVacUsedInYear(name, vacYear))
     lastVacChangedName.current = name
     setVacData(prev => ({
       ...prev,
@@ -252,6 +317,7 @@ export default function App() {
     }))
   }
   function vacSetTotal(name, val) {
+    if (isVacYearlyMode) return vacSetYearAdj(name, val)
     lastVacChangedName.current = name
     setVacData(prev => {
       const entry = prev[name] || { total: 0, remaining: 0, days: {} }
@@ -260,7 +326,8 @@ export default function App() {
     })
   }
   function getVacTotal(name) {
-    return vacData[name]?.total ?? 0
+    if (!isVacYearlyMode) return vacData[name]?.total ?? 0
+    return getVacAutoTotal(name) + (vacData[name]?.adj?.[vacYear] || 0)
   }
 
   // ── MEMO ──
@@ -323,7 +390,8 @@ export default function App() {
             const perPerson = vacResults[i].value
             const blobData = vacCombined[name] || {}
             // 손상된 개별키 판별: total 없거나 remaining 음수 → 구버전 버그로 생성된 불완전 데이터
-            const isCorrupted = !perPerson.total || (perPerson.remaining !== undefined && perPerson.remaining < 0)
+            // ver 2 = 현재 코드가 저장한 키 → 판별 제외 (연도별 모드에선 구 remaining 필드가 음수가 될 수 있음)
+            const isCorrupted = perPerson.ver !== 2 && (!perPerson.total || (perPerson.remaining !== undefined && perPerson.remaining < 0))
             if (isCorrupted) {
               // 손상 키: blob 기준으로 개별키 days를 위에 덮음 (개별키의 최신 변경 우선)
               const mergedDays = { ...(blobData.days || {}), ...(perPerson.days || {}) }
@@ -407,7 +475,7 @@ export default function App() {
     const name = lastVacChangedName.current
     lastVacChangedName.current = null
     if (name && vacData[name] !== undefined) {
-      saveSetting('vac-' + name, vacData[name])
+      saveSetting('vac-' + name, { ...vacData[name], ver: 2 })
     }
   }, [vacData])
 
@@ -699,7 +767,7 @@ export default function App() {
       if (!prev[oldName]) return prev
       const next = { ...prev, [newName]: prev[oldName] }
       delete next[oldName]
-      saveSetting('vac-' + newName, prev[oldName])
+      saveSetting('vac-' + newName, { ...prev[oldName], ver: 2 })
       return next
     })
   }
@@ -1006,6 +1074,14 @@ export default function App() {
         </div>
       </div>
 
+      {/* 공휴일 목록 갱신 알림: 올해 목록 없음 → 즉시, 다음 해 목록 없음 → 7월부터 (관리자만) */}
+      {isAdmin && !holidayNoticeClosed && holidayNoticeYear && (
+        <div className="holiday-notice">
+          <span>📅 {holidayNoticeYear}년 공휴일이 아직 등록되지 않았습니다. 우주항공청 {holidayNoticeYear}년 월력요항을 확인해 공휴일 목록을 추가해주세요. (연차 총일수 계산에 사용)</span>
+          <button className="holiday-notice-close" onClick={() => setHolidayNoticeClosed(true)}>×</button>
+        </div>
+      )}
+
       {/* CALENDAR */}
       {!vacMode && <div className="calendar-wrap">
         <div className="cal-grid">
@@ -1157,15 +1233,15 @@ export default function App() {
                           <div className="vac-total-wrap">
                             {isAdmin
                               ? <input
-                                  className={`vac-days-popup-input${vacData[name]?.autoTotal != null && getVacTotal(name) !== vacData[name].autoTotal ? ' vac-total-modified' : ''}`}
+                                  className={`vac-days-popup-input${getVacAutoTotal(name) != null && getVacTotal(name) !== getVacAutoTotal(name) ? ' vac-total-modified' : ''}`}
                                   type="text" inputMode="decimal"
                                   value={getVacTotal(name)}
                                   onChange={e => vacSetTotal(name, parseFloat(e.target.value) || 0)} />
-                              : <span className={`vac-days-popup-input vac-days-readonly${vacData[name]?.autoTotal != null && getVacTotal(name) !== vacData[name].autoTotal ? ' vac-total-modified' : ''}`}>{getVacTotal(name)}</span>
+                              : <span className={`vac-days-popup-input vac-days-readonly${getVacAutoTotal(name) != null && getVacTotal(name) !== getVacAutoTotal(name) ? ' vac-total-modified' : ''}`}>{getVacTotal(name)}</span>
                             }
-                            {vacData[name]?.autoTotal != null && getVacTotal(name) !== vacData[name].autoTotal && (
+                            {getVacAutoTotal(name) != null && getVacTotal(name) !== getVacAutoTotal(name) && (
                               <span className="vac-total-diff">
-                                {getVacTotal(name) - vacData[name].autoTotal > 0 ? '+' : ''}{getVacTotal(name) - vacData[name].autoTotal}
+                                {getVacTotal(name) - getVacAutoTotal(name) > 0 ? '+' : ''}{getVacTotal(name) - getVacAutoTotal(name)}
                               </span>
                             )}
                           </div>
